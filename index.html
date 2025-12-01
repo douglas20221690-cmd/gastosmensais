@@ -5,137 +5,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Controle de Gastos PWA</title>
     
-    <!-- PWA Manifest Link -->
     <link rel="manifest" href="manifest.json">
     
-    <!-- ÍCONES DO APP -->
-    <link rel="icon" type="image/png" href="icon.png">
-    <link rel="apple-touch-icon" href="icon.png">
+    <!-- ÍCONES -->
+    <link rel="icon" type="image/png" sizes="512x512" href="icon.png?v=3">
+    <link rel="apple-touch-icon" sizes="180x180" href="icon.png?v=3">
     
-    <!-- Meta tags para Mobile -->
     <meta name="theme-color" content="#10b981">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <!-- Tailwind CSS -->
+    <!-- Bibliotecas Externas (Serão cacheadas pelo SW) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Vue.js 3 (Global) -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 
     <style>
-        /* Ajustes finos para sensação nativa de App */
-        body {
-            -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: none;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        }
-        .pb-safe {
-            padding-bottom: env(safe-area-inset-bottom);
-        }
-        /* Esconder scrollbar mas permitir scroll */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        .animate-fade-in {
-            animation: fadeIn 0.3s ease-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden">
 
     <div id="app" class="flex flex-col h-full relative">
 
-        <!-- TELA DE LOGIN (Se não estiver logado) -->
+        <!-- TELA DE LOGIN -->
         <div v-if="!user" class="absolute inset-0 z-50 bg-emerald-600 flex flex-col items-center justify-center p-6 animate-fade-in">
             <div class="bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl">
                 <div class="text-center mb-8">
-                    <!-- Ícone Local no Login -->
                     <div class="w-24 h-24 mx-auto mb-4 bg-emerald-100 rounded-full flex items-center justify-center p-4">
-                        <img src="icon.png" alt="Logo" class="w-full h-full object-contain drop-shadow-md">
+                        <img src="icon.png?v=3" alt="Logo" class="w-full h-full object-contain drop-shadow-md">
                     </div>
                     <h1 class="text-2xl font-bold text-gray-800">Bem-vindo</h1>
                     <p class="text-gray-400 text-sm">Controle financeiro simples</p>
                 </div>
-
                 <form @submit.prevent="handleLogin" class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">E-mail</label>
-                        <input 
-                            type="email" 
-                            v-model="loginEmail" 
-                            class="w-full px-4 py-3 bg-gray-50 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all"
-                            placeholder="seu@email.com"
-                            required
-                        >
+                        <input type="email" v-model="loginEmail" class="w-full px-4 py-3 bg-gray-50 rounded-lg border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500" placeholder="seu@email.com" required>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Senha</label>
-                        <input 
-                            type="password" 
-                            v-model="loginPassword" 
-                            class="w-full px-4 py-3 bg-gray-50 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all"
-                            placeholder="••••••••"
-                            required
-                        >
+                        <input type="password" v-model="loginPassword" class="w-full px-4 py-3 bg-gray-50 rounded-lg border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500" placeholder="••••••••" required>
                     </div>
-
-                    <div v-if="loginError" class="text-red-500 text-sm text-center bg-red-50 p-2 rounded">
-                        {{ loginError }}
-                    </div>
-
-                    <button 
-                        type="submit" 
-                        class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-emerald-700 transition-transform active:scale-95 flex justify-center items-center"
-                        :disabled="isLoggingIn"
-                    >
+                    <div v-if="loginError" class="text-red-500 text-sm text-center bg-red-50 p-2 rounded">{{ loginError }}</div>
+                    <button type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-emerald-700 active:scale-95 transition-transform" :disabled="isLoggingIn">
                         <span v-if="isLoggingIn"><i class="fas fa-spinner fa-spin mr-2"></i> Entrando...</span>
                         <span v-else>Entrar</span>
                     </button>
                 </form>
             </div>
-            <p class="text-emerald-100/60 text-xs mt-8">Versão 1.2.0 • PWA</p>
+            <p class="text-emerald-100/60 text-xs mt-8">Versão Offline Ativa • PWA</p>
         </div>
         
-        <!-- TELA DO APP (Se estiver logado) -->
+        <!-- TELA DO APP -->
         <template v-else>
-            <!-- Header / Resumo Geral -->
             <header class="bg-emerald-600 text-white p-6 shadow-lg rounded-b-3xl z-10 shrink-0 relative transition-all duration-300">
                 <div class="flex justify-between items-center mb-4">
                     <h1 class="text-xl font-bold flex items-center">
-                        <img src="icon.png" class="w-8 h-8 mr-2 object-contain bg-white/20 rounded-full p-1">
+                        <img src="icon.png?v=3" class="w-8 h-8 mr-2 object-contain bg-white/20 rounded-full p-1">
                         Minhas Finanças
                     </h1>
                     <div class="flex gap-3">
-                        <button @click="toggleSettings" class="text-white opacity-80 hover:opacity-100 transition-opacity" title="Configurar Limite">
-                            <i class="fas fa-cog text-xl"></i>
-                        </button>
-                        <button @click="handleLogout" class="text-white opacity-80 hover:opacity-100 transition-opacity" title="Sair">
-                            <i class="fas fa-sign-out-alt text-xl"></i>
-                        </button>
+                        <button @click="toggleSettings" class="text-white opacity-80 hover:opacity-100 transition-opacity"><i class="fas fa-cog text-xl"></i></button>
+                        <button @click="handleLogout" class="text-white opacity-80 hover:opacity-100 transition-opacity"><i class="fas fa-sign-out-alt text-xl"></i></button>
                     </div>
                 </div>
 
                 <!-- Navegador de Meses -->
                 <div class="flex items-center justify-between bg-emerald-700/50 rounded-lg p-2 mb-4 backdrop-blur-sm">
-                    <button @click="changeMonth(-1)" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-emerald-600/50 transition-colors active:scale-90">
-                        <i class="fas fa-chevron-left text-emerald-100"></i>
-                    </button>
+                    <button @click="changeMonth(-1)" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-emerald-600/50"><i class="fas fa-chevron-left text-emerald-100"></i></button>
                     <span class="font-bold text-lg capitalize tracking-wide select-none">{{ currentMonthDisplay }}</span>
-                    <button @click="changeMonth(1)" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-emerald-600/50 transition-colors active:scale-90">
-                        <i class="fas fa-chevron-right text-emerald-100"></i>
-                    </button>
+                    <button @click="changeMonth(1)" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-emerald-600/50"><i class="fas fa-chevron-right text-emerald-100"></i></button>
                 </div>
 
                 <div class="space-y-1">
@@ -143,90 +88,52 @@
                         Disponível
                         <span v-if="isCustomLimit" class="bg-emerald-400 text-emerald-900 text-[10px] px-1.5 rounded-full font-bold uppercase tracking-wider">Personalizado</span>
                     </p>
-                    <div class="text-3xl font-bold tracking-tight">
-                        {{ formatCurrency(remainingBudget) }}
-                    </div>
+                    <div class="text-3xl font-bold tracking-tight">{{ formatCurrency(remainingBudget) }}</div>
                     <div class="flex justify-between text-xs text-emerald-100 mt-2 font-medium">
-                        <span>Gasto Total: {{ formatCurrency(totalSpent) }}</span>
+                        <span>Gasto: {{ formatCurrency(totalSpent) }}</span>
                         <span>Limite: {{ formatCurrency(currentMonthlyLimit) }}</span>
                     </div>
                 </div>
-
-                <!-- Barra de Progresso -->
                 <div class="mt-4 h-2 bg-emerald-800/30 rounded-full overflow-hidden">
-                    <div 
-                        class="h-full transition-all duration-500 ease-out"
-                        :class="progressBarColor"
-                        :style="{ width: progressPercentage + '%' }"
-                    ></div>
+                    <div class="h-full transition-all duration-500 ease-out" :class="progressBarColor" :style="{ width: progressPercentage + '%' }"></div>
                 </div>
             </header>
 
-            <!-- Configurações (Modal Inline) -->
+            <!-- Configurações (Limite por Mês) -->
             <div v-if="showSettings" class="bg-emerald-700 p-4 text-white shadow-inner animate-fade-in shrink-0 border-t border-emerald-600">
                 <label class="block text-xs uppercase tracking-wide opacity-75 mb-2 flex justify-between">
                     <span>Limite para <strong class="text-white capitalize">{{ currentMonthDisplay }}</strong></span>
-                    <span class="text-[10px] opacity-60">Altera apenas este mês</span>
                 </label>
                 <div class="flex gap-2">
                     <div class="relative flex-1">
                         <span class="absolute left-3 top-2 text-emerald-200">R$</span>
-                        <input 
-                            type="number" 
-                            v-model="tempLimit" 
-                            class="w-full bg-emerald-800 text-white rounded px-3 py-2 pl-8 outline-none focus:ring-2 focus:ring-white/50 font-bold"
-                            placeholder="0,00"
-                        >
+                        <input type="number" v-model="tempLimit" class="w-full bg-emerald-800 text-white rounded px-3 py-2 pl-8 outline-none font-bold" placeholder="0,00">
                     </div>
                     <button @click="saveLimit" class="bg-white text-emerald-700 px-6 py-2 rounded font-bold text-sm shadow hover:bg-emerald-50 active:scale-95 transition-all">Salvar</button>
                 </div>
             </div>
 
-            <!-- Conteúdo Principal -->
+            <!-- Lista -->
             <main class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar pb-24">
-                
-                <!-- Resumo por Tipo -->
                 <div class="grid grid-cols-2 gap-3" v-if="filteredTransactions.length > 0">
-                    <!-- Card Débito -->
                     <div class="bg-orange-50 p-3 rounded-2xl border border-orange-100 flex flex-col items-center shadow-sm">
-                        <div class="text-orange-500 mb-1 bg-orange-100 p-2 rounded-full w-8 h-8 flex items-center justify-center">
-                            <i class="fas fa-money-bill-wave text-xs"></i>
-                        </div>
-                        <span class="text-xs text-orange-400 font-bold uppercase tracking-wide mb-1">Débito</span>
+                        <div class="text-orange-500 mb-1 bg-orange-100 p-2 rounded-full w-8 h-8 flex items-center justify-center"><i class="fas fa-money-bill-wave text-xs"></i></div>
+                        <span class="text-xs text-orange-400 font-bold uppercase">Débito</span>
                         <span class="text-lg font-bold text-orange-700">{{ formatCurrency(totalDebit) }}</span>
                     </div>
-
-                    <!-- Card Crédito -->
                     <div class="bg-indigo-50 p-3 rounded-2xl border border-indigo-100 flex flex-col items-center shadow-sm">
-                        <div class="text-indigo-500 mb-1 bg-indigo-100 p-2 rounded-full w-8 h-8 flex items-center justify-center">
-                            <i class="fas fa-credit-card text-xs"></i>
-                        </div>
-                        <span class="text-xs text-indigo-400 font-bold uppercase tracking-wide mb-1">Crédito</span>
+                        <div class="text-indigo-500 mb-1 bg-indigo-100 p-2 rounded-full w-8 h-8 flex items-center justify-center"><i class="fas fa-credit-card text-xs"></i></div>
+                        <span class="text-xs text-indigo-400 font-bold uppercase">Crédito</span>
                         <span class="text-lg font-bold text-indigo-700">{{ formatCurrency(totalCredit) }}</span>
                     </div>
                 </div>
 
-                <!-- Lista de Transações -->
-                <div v-if="loading" class="text-center text-gray-400 mt-10">
-                    <i class="fas fa-spinner fa-spin text-2xl"></i>
-                    <p class="text-sm mt-2">Carregando gastos...</p>
-                </div>
+                <div v-if="loading" class="text-center text-gray-400 mt-10"><i class="fas fa-spinner fa-spin text-2xl"></i><p class="text-sm mt-2">Carregando...</p></div>
+                <div v-else-if="filteredTransactions.length === 0" class="text-center text-gray-400 mt-10 opacity-60"><i class="fas fa-calendar-alt text-4xl mb-2"></i><p>Nenhum gasto em <span class="capitalize">{{ currentMonthDisplay }}</span>.</p></div>
 
-                <div v-else-if="filteredTransactions.length === 0" class="text-center text-gray-400 mt-10 opacity-60">
-                    <i class="fas fa-calendar-alt text-4xl mb-2"></i>
-                    <p>Nenhum gasto em <span class="capitalize">{{ currentMonthDisplay }}</span>.</p>
-                </div>
-
-                <div 
-                    v-for="t in filteredTransactions" 
-                    :key="t.id"
-                    class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center relative group"
-                >
+                <div v-for="t in filteredTransactions" :key="t.id" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center relative group">
                     <div class="flex items-center gap-3">
-                        <div 
-                            class="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm"
-                            :class="t.type === 'credit' ? 'bg-indigo-500' : 'bg-orange-500'"
-                        >
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm" :class="t.type === 'credit' ? 'bg-indigo-500' : 'bg-orange-500'">
                             <i class="fas" :class="t.type === 'credit' ? 'fa-credit-card' : 'fa-money-bill-wave'"></i>
                         </div>
                         <div>
@@ -236,115 +143,41 @@
                     </div>
                     <div class="flex flex-col items-end">
                         <span class="font-bold text-gray-800">- {{ formatCurrency(t.amount) }}</span>
-                        <button 
-                            @click="deleteTransaction(t.id)"
-                            class="text-red-400 text-xs mt-1 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                        >
-                            Excluir
-                        </button>
+                        <button @click="deleteTransaction(t.id)" class="text-red-400 text-xs mt-1 p-1">Excluir</button>
                     </div>
                 </div>
             </main>
 
-            <!-- Botão Flutuante (FAB) para Adicionar -->
-            <button 
-                @click="openModal"
-                class="absolute bottom-6 right-6 w-14 h-14 bg-emerald-600 text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-105 active:scale-95 transition-transform z-20"
-            >
-                <i class="fas fa-plus"></i>
-            </button>
+            <button @click="openModal" class="absolute bottom-6 right-6 w-14 h-14 bg-emerald-600 text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-105 active:scale-95 transition-transform z-20"><i class="fas fa-plus"></i></button>
 
-            <!-- Modal de Adicionar Gasto -->
             <div v-if="showModal" class="absolute inset-0 bg-black/50 z-30 flex items-end sm:items-center justify-center backdrop-blur-sm" @click.self="closeModal">
                 <div class="bg-white w-full sm:w-96 p-6 rounded-t-3xl sm:rounded-2xl shadow-2xl transform transition-transform pb-safe">
                     <h2 class="text-xl font-bold text-gray-800 mb-4">Novo Gasto</h2>
-                    
                     <div class="space-y-4">
-                        <!-- Valor -->
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Valor</label>
-                            <div class="relative">
-                                <span class="absolute left-3 top-3 text-gray-400">R$</span>
-                                <input 
-                                    type="number" 
-                                    v-model="newTransaction.amount"
-                                    step="0.01"
-                                    placeholder="0,00"
-                                    ref="amountInput"
-                                    class="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-lg border-none focus:ring-2 focus:ring-emerald-500 text-lg font-bold text-gray-800"
-                                >
-                            </div>
+                            <div class="relative"><span class="absolute left-3 top-3 text-gray-400">R$</span><input type="number" v-model="newTransaction.amount" step="0.01" ref="amountInput" class="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-lg border-none focus:ring-2 focus:ring-emerald-500 text-lg font-bold text-gray-800" placeholder="0,00"></div>
                         </div>
-
-                        <!-- Descrição -->
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Descrição</label>
-                            <input 
-                                type="text" 
-                                v-model="newTransaction.description"
-                                placeholder="Ex: Supermercado"
-                                class="w-full px-4 py-3 bg-gray-50 rounded-lg border-none focus:ring-2 focus:ring-emerald-500"
-                            >
+                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Descrição</label><input type="text" v-model="newTransaction.description" class="w-full px-4 py-3 bg-gray-50 rounded-lg border-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex: Supermercado"></div>
+                        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Data e Hora</label><input type="datetime-local" v-model="newTransaction.customDate" class="w-full px-4 py-3 bg-gray-50 rounded-lg border-none focus:ring-2 focus:ring-emerald-500 text-gray-700"></div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button @click="newTransaction.type = 'debit'" class="py-3 rounded-lg border-2 font-medium flex flex-col items-center gap-1" :class="newTransaction.type === 'debit' ? 'border-orange-500 bg-orange-50 text-orange-600' : 'border-gray-100 text-gray-400'"><i class="fas fa-money-bill-wave"></i> Débito</button>
+                            <button @click="newTransaction.type = 'credit'" class="py-3 rounded-lg border-2 font-medium flex flex-col items-center gap-1" :class="newTransaction.type === 'credit' ? 'border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-gray-100 text-gray-400'"><i class="fas fa-credit-card"></i> Crédito</button>
                         </div>
-
-                        <!-- Data e Hora -->
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Data e Hora</label>
-                            <input 
-                                type="datetime-local" 
-                                v-model="newTransaction.customDate"
-                                class="w-full px-4 py-3 bg-gray-50 rounded-lg border-none focus:ring-2 focus:ring-emerald-500 text-gray-700"
-                            >
-                        </div>
-
-                        <!-- Tipo -->
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Forma de Pagamento</label>
-                            <div class="grid grid-cols-2 gap-3">
-                                <button 
-                                    @click="newTransaction.type = 'debit'"
-                                    class="py-3 rounded-lg border-2 font-medium transition-colors flex flex-col items-center justify-center gap-1"
-                                    :class="newTransaction.type === 'debit' ? 'border-orange-500 bg-orange-50 text-orange-600' : 'border-gray-100 text-gray-400'"
-                                >
-                                    <i class="fas fa-money-bill-wave"></i> Débito
-                                </button>
-                                <button 
-                                    @click="newTransaction.type = 'credit'"
-                                    class="py-3 rounded-lg border-2 font-medium transition-colors flex flex-col items-center justify-center gap-1"
-                                    :class="newTransaction.type === 'credit' ? 'border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-gray-100 text-gray-400'"
-                                >
-                                    <i class="fas fa-credit-card"></i> Crédito
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Botão Salvar -->
-                        <button 
-                            @click="addTransaction"
-                            :disabled="!isValidTransaction"
-                            class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
-                        >
-                            Confirmar
-                        </button>
+                        <button @click="addTransaction" :disabled="!isValidTransaction" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-emerald-700 disabled:opacity-50 mt-4">Confirmar</button>
                     </div>
-                    
                     <button @click="closeModal" class="w-full text-center mt-4 text-gray-400 text-sm py-2">Cancelar</button>
                 </div>
             </div>
         </template>
-
     </div>
 
     <script type="module">
-        // Importando Vue
-        const { createApp, ref, computed, onMounted, watch } = Vue;
-
-        // Importando Firebase
+        const { createApp, ref, computed, onMounted } = Vue;
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, setDoc, getDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, doc, setDoc, deleteDoc, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        // Configuração REAL do seu projeto Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyBynG1L1voQ-GJnjwv7KeKV6p64eDxD8KY",
             authDomain: "gastosmensais-3d721.firebaseapp.com",
@@ -354,10 +187,15 @@
             appId: "1:564092336226:web:8d68fb169fc09dce84793b"
         };
         
-        // Inicialização
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        // --- CORREÇÃO OFFLINE: Ativa banco de dados local ---
+        enableIndexedDbPersistence(db).catch((err) => {
+            console.log("Persistência offline:", err.code);
+        });
+        
         const appId = 'gastosmensais-3d721'; 
 
         createApp({
@@ -365,118 +203,70 @@
                 const user = ref(null);
                 const transactions = ref([]);
                 
-                // Novos estados para limites
-                const monthlyLimitsMap = ref({}); // Armazena { "2023-11": 3000, "2023-12": 4000 }
+                // Lógica de Limites por Mês
+                const monthlyLimitsMap = ref({}); 
                 const defaultLimit = ref(2000);
                 
                 const loading = ref(false);
-                
-                // Date & Month State
                 const currentDate = ref(new Date());
 
-                // Login States
+                // Login
                 const loginEmail = ref('douglasrgomes@gmail.com');
                 const loginPassword = ref('');
                 const loginError = ref('');
                 const isLoggingIn = ref(false);
 
-                // UI States
+                // UI
                 const showModal = ref(false);
                 const showSettings = ref(false);
                 const tempLimit = ref(2000);
                 const amountInput = ref(null);
+                const newTransaction = ref({ amount: '', description: '', type: 'debit', customDate: '' });
 
-                const newTransaction = ref({
-                    amount: '',
-                    description: '',
-                    type: 'debit',
-                    customDate: '' 
-                });
-
-                // --- Methods para Data/Mês ---
-                
+                // Helpers
                 const changeMonth = (delta) => {
                     const d = new Date(currentDate.value);
                     d.setMonth(d.getMonth() + delta);
                     currentDate.value = d;
-                    // Ao mudar o mês, feche as configurações para evitar confusão
                     showSettings.value = false;
                 };
-
                 const currentMonthKey = computed(() => {
-                    // Retorna chave única para o mês, ex: "2023-11"
-                    const m = currentDate.value.getMonth() + 1; // 1-12
+                    const m = currentDate.value.getMonth() + 1;
                     const y = currentDate.value.getFullYear();
                     return `${y}-${m.toString().padStart(2, '0')}`;
                 });
-
                 const currentMonthDisplay = computed(() => {
                     return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentDate.value);
                 });
-
-                // --- Lógica de Limite Mensal ---
-
                 const currentMonthlyLimit = computed(() => {
-                    // Verifica se existe limite específico para este mês no mapa
                     if (monthlyLimitsMap.value && monthlyLimitsMap.value[currentMonthKey.value]) {
                         return monthlyLimitsMap.value[currentMonthKey.value];
                     }
-                    // Se não, retorna o padrão
                     return defaultLimit.value;
                 });
-
                 const isCustomLimit = computed(() => {
-                    // Helper para UI saber se é um limite customizado
                     return monthlyLimitsMap.value && monthlyLimitsMap.value[currentMonthKey.value] !== undefined;
                 });
 
-                // --- Computed Filtered Logic ---
-                
+                // Filtragem e Totais
                 const filteredTransactions = computed(() => {
                     const targetMonth = currentDate.value.getMonth();
                     const targetYear = currentDate.value.getFullYear();
-
                     return transactions.value.filter(t => {
                         if (!t.date) return false;
                         const d = t.date.toDate();
                         return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
-                    }).sort((a, b) => {
-                        const dateA = a.date ? a.date.toDate() : new Date();
-                        const dateB = b.date ? b.date.toDate() : new Date();
-                        return dateB - dateA;
-                    });
+                    }).sort((a, b) => (b.date ? b.date.toDate() : 0) - (a.date ? a.date.toDate() : 0));
                 });
-
-                const isValidTransaction = computed(() => {
-                    return newTransaction.value.amount > 0 && newTransaction.value.description.trim() !== '' && newTransaction.value.customDate;
-                });
-
-                const totalSpent = computed(() => {
-                    return filteredTransactions.value.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
-                });
-
-                const totalCredit = computed(() => {
-                    return filteredTransactions.value
-                        .filter(t => t.type === 'credit')
-                        .reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
-                });
-
-                const totalDebit = computed(() => {
-                    return filteredTransactions.value
-                        .filter(t => t.type === 'debit')
-                        .reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
-                });
-
-                const remainingBudget = computed(() => {
-                    return currentMonthlyLimit.value - totalSpent.value;
-                });
-
+                const isValidTransaction = computed(() => newTransaction.value.amount > 0 && newTransaction.value.description.trim() !== '' && newTransaction.value.customDate);
+                const totalSpent = computed(() => filteredTransactions.value.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
+                const totalCredit = computed(() => filteredTransactions.value.filter(t => t.type === 'credit').reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
+                const totalDebit = computed(() => filteredTransactions.value.filter(t => t.type === 'debit').reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
+                const remainingBudget = computed(() => currentMonthlyLimit.value - totalSpent.value);
                 const progressPercentage = computed(() => {
                     if (currentMonthlyLimit.value <= 0) return 100;
-                    const pct = (totalSpent.value / currentMonthlyLimit.value) * 100;
-                    return Math.min(pct, 100);
+                    return Math.min((totalSpent.value / currentMonthlyLimit.value) * 100, 100);
                 });
-
                 const progressBarColor = computed(() => {
                     const pct = progressPercentage.value;
                     if (pct < 50) return 'bg-emerald-300';
@@ -484,154 +274,67 @@
                     return 'bg-red-500';
                 });
 
-                // Methods
+                // Ações
                 const handleLogin = async () => {
                     isLoggingIn.value = true;
                     loginError.value = '';
-                    try {
-                        await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value);
-                    } catch (error) {
-                        console.error(error);
-                        if(error.code === 'auth/invalid-credential') {
-                            loginError.value = 'E-mail ou senha incorretos.';
-                        } else {
-                            loginError.value = 'Erro ao entrar: ' + error.message;
-                        }
-                    } finally {
-                        isLoggingIn.value = false;
-                    }
+                    try { await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value); } 
+                    catch (error) { loginError.value = error.code === 'auth/invalid-credential' ? 'E-mail/senha incorretos.' : 'Erro: ' + error.message; } 
+                    finally { isLoggingIn.value = false; }
                 };
-
                 const handleLogout = async () => {
-                    if(confirm('Deseja sair do aplicativo?')) {
-                        try {
-                            await signOut(auth);
-                            transactions.value = [];
-                            monthlyLimitsMap.value = {};
-                        } catch (error) {
-                            console.error("Erro ao sair", error);
-                        }
-                    }
+                    if(confirm('Deseja sair?')) { await signOut(auth); transactions.value = []; monthlyLimitsMap.value = {}; }
                 };
-
-                const formatCurrency = (value) => {
-                    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-                };
-
+                const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
                 const formatDate = (timestamp) => {
                     if (!timestamp) return 'Agora';
-                    const date = timestamp.toDate();
-                    return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date);
+                    return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(timestamp.toDate());
                 };
-
                 const openModal = () => {
-                    const now = new Date();
-                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-                    const defaultDate = now.toISOString().slice(0, 16);
-
-                    newTransaction.value = { 
-                        amount: '', 
-                        description: '', 
-                        type: 'debit',
-                        customDate: defaultDate 
-                    };
-                    showModal.value = true;
-                    setTimeout(() => {
-                        if(amountInput.value) amountInput.value.focus();
-                    }, 100);
+                    const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                    newTransaction.value = { amount: '', description: '', type: 'debit', customDate: now.toISOString().slice(0, 16) };
+                    showModal.value = true; setTimeout(() => amountInput.value?.focus(), 100);
                 };
-
-                const closeModal = () => {
-                    showModal.value = false;
-                };
-
-                const toggleSettings = () => {
-                    showSettings.value = !showSettings.value;
-                    if (showSettings.value) {
-                        // Ao abrir, preenche com o valor do mês ATUAL
-                        tempLimit.value = currentMonthlyLimit.value;
-                    }
-                };
-
+                const closeModal = () => showModal.value = false;
+                const toggleSettings = () => { showSettings.value = !showSettings.value; if(showSettings.value) tempLimit.value = currentMonthlyLimit.value; };
                 const saveLimit = async () => {
                     if (!user.value || tempLimit.value < 0) return;
                     try {
                         const settingsRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'settings', 'config');
-                        
-                        // Cria objeto de atualização dinâmica
-                        // Salva dentro de um map "monthlyLimits" com a chave do mês atual
-                        const updateData = {};
-                        updateData[`monthlyLimits.${currentMonthKey.value}`] = parseFloat(tempLimit.value);
-
+                        const updateData = {}; updateData[`monthlyLimits.${currentMonthKey.value}`] = parseFloat(tempLimit.value);
                         await setDoc(settingsRef, updateData, { merge: true });
-                        
-                        // Atualiza localmente para feedback instantâneo (o snapshot vai confirmar depois)
                         monthlyLimitsMap.value[currentMonthKey.value] = parseFloat(tempLimit.value);
-                        
                         showSettings.value = false;
-                    } catch (e) {
-                        console.error("Error saving limit", e);
-                        alert("Erro ao salvar limite.");
-                    }
+                    } catch (e) { console.error("Erro limite", e); alert("Erro ao salvar."); }
                 };
-
                 const addTransaction = async () => {
                     if (!user.value || !isValidTransaction.value) return;
-
                     try {
-                        const val = parseFloat(newTransaction.value.amount);
                         const selectedDate = new Date(newTransaction.value.customDate);
-
                         await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), {
-                            amount: val,
-                            description: newTransaction.value.description,
-                            type: newTransaction.value.type,
-                            date: selectedDate 
+                            amount: parseFloat(newTransaction.value.amount), description: newTransaction.value.description, type: newTransaction.value.type, date: selectedDate 
                         });
-                        
                         currentDate.value = new Date(selectedDate);
-                        
                         closeModal();
-                    } catch (e) {
-                        console.error("Error adding doc", e);
-                        alert("Erro ao salvar. Tente novamente.");
-                    }
+                    } catch (e) { alert("Erro ao salvar."); }
                 };
+                const deleteTransaction = async (id) => { if (confirm("Remover?")) await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id)); };
 
-                const deleteTransaction = async (id) => {
-                    if (!confirm("Remover este gasto?")) return;
-                    try {
-                        await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id));
-                    } catch (e) {
-                        console.error("Error deleting", e);
-                    }
-                };
-
-                // Lifecycle
                 onMounted(async () => {
                     onAuthStateChanged(auth, (u) => {
                         user.value = u;
                         if (u) {
                             loading.value = true;
-                            // 1. Config (Agora carrega o mapa de limites)
-                            const settingsRef = doc(db, 'artifacts', appId, 'users', u.uid, 'settings', 'config');
-                            onSnapshot(settingsRef, (docSnap) => {
+                            // Carrega Configs e Limites
+                            onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'settings', 'config'), (docSnap) => {
                                 if (docSnap.exists()) {
-                                    const data = docSnap.data();
-                                    // Carrega o padrão antigo se existir, ou define 2000
-                                    defaultLimit.value = data.monthlyLimit || 2000; 
-                                    // Carrega o mapa de meses (ou vazio se não existir)
-                                    monthlyLimitsMap.value = data.monthlyLimits || {};
+                                    defaultLimit.value = docSnap.data().monthlyLimit || 2000; 
+                                    monthlyLimitsMap.value = docSnap.data().monthlyLimits || {};
                                 }
                             });
-
-                            // 2. Gastos
-                            const expensesRef = collection(db, 'artifacts', appId, 'users', u.uid, 'expenses');
-                            onSnapshot(expensesRef, (snapshot) => {
+                            // Carrega Gastos
+                            onSnapshot(collection(db, 'artifacts', appId, 'users', u.uid, 'expenses'), (snapshot) => {
                                 transactions.value = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                                loading.value = false;
-                            }, (err) => {
-                                console.error("Snapshot error", err);
                                 loading.value = false;
                             });
                         } else {
@@ -639,24 +342,20 @@
                             loading.value = false;
                         }
                     });
-
+                    
+                    // Tratamento de erro no registro do SW para o ambiente de preview
                     if ('serviceWorker' in navigator) {
-                        window.addEventListener('load', () => {
-                            navigator.serviceWorker.register('./sw.js')
-                                .catch(err => console.log('SW Failed', err));
-                        });
+                        navigator.serviceWorker.register('./sw.js')
+                            .then(reg => console.log('SW Registrado'))
+                            .catch(err => console.log('SW Falhou no preview (normal):', err));
                     }
                 });
 
                 return {
-                    user, transactions, loading,
-                    loginEmail, loginPassword, loginError, isLoggingIn, handleLogin, handleLogout,
-                    showModal, showSettings, newTransaction, tempLimit, amountInput,
-                    isValidTransaction, totalSpent, totalCredit, totalDebit, remainingBudget, progressPercentage, progressBarColor, 
-                    filteredTransactions, 
-                    currentMonthDisplay, changeMonth, 
-                    currentMonthlyLimit, isCustomLimit, // Retornos novos para o template
-                    formatCurrency, formatDate, openModal, closeModal, toggleSettings, saveLimit, addTransaction, deleteTransaction
+                    user, transactions, loading, loginEmail, loginPassword, loginError, isLoggingIn, handleLogin, handleLogout,
+                    showModal, showSettings, newTransaction, tempLimit, amountInput, isValidTransaction, totalSpent, totalCredit, totalDebit, 
+                    remainingBudget, progressPercentage, progressBarColor, filteredTransactions, currentMonthDisplay, changeMonth, 
+                    currentMonthlyLimit, isCustomLimit, formatCurrency, formatDate, openModal, closeModal, toggleSettings, saveLimit, addTransaction, deleteTransaction
                 };
             }
         }).mount('#app');
