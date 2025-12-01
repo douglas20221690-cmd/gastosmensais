@@ -8,6 +8,10 @@
     <!-- PWA Manifest Link -->
     <link rel="manifest" href="manifest.json">
     
+    <!-- ÍCONES DO APP -->
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    
     <!-- Meta tags para Mobile -->
     <meta name="theme-color" content="#10b981">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -57,8 +61,9 @@
         <div v-if="!user" class="absolute inset-0 z-50 bg-emerald-600 flex flex-col items-center justify-center p-6 animate-fade-in">
             <div class="bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl">
                 <div class="text-center mb-8">
-                    <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-600">
-                        <i class="fas fa-wallet text-4xl"></i>
+                    <!-- Ícone Local no Login -->
+                    <div class="w-24 h-24 mx-auto mb-4 bg-emerald-100 rounded-full flex items-center justify-center p-4">
+                        <img src="icon.png" alt="Logo" class="w-full h-full object-contain drop-shadow-md">
                     </div>
                     <h1 class="text-2xl font-bold text-gray-800">Bem-vindo</h1>
                     <p class="text-gray-400 text-sm">Controle financeiro simples</p>
@@ -100,7 +105,7 @@
                     </button>
                 </form>
             </div>
-            <p class="text-emerald-100/60 text-xs mt-8">Versão 1.1.1 • PWA</p>
+            <p class="text-emerald-100/60 text-xs mt-8">Versão 1.2.0 • PWA</p>
         </div>
         
         <!-- TELA DO APP (Se estiver logado) -->
@@ -108,36 +113,42 @@
             <!-- Header / Resumo Geral -->
             <header class="bg-emerald-600 text-white p-6 shadow-lg rounded-b-3xl z-10 shrink-0 relative transition-all duration-300">
                 <div class="flex justify-between items-center mb-4">
-                    <h1 class="text-xl font-bold"><i class="fas fa-wallet mr-2"></i>Minhas Finanças</h1>
+                    <h1 class="text-xl font-bold flex items-center">
+                        <img src="icon.png" class="w-8 h-8 mr-2 object-contain bg-white/20 rounded-full p-1">
+                        Minhas Finanças
+                    </h1>
                     <div class="flex gap-3">
-                        <button @click="toggleSettings" class="text-white opacity-80 hover:opacity-100" title="Configurações">
+                        <button @click="toggleSettings" class="text-white opacity-80 hover:opacity-100 transition-opacity" title="Configurar Limite">
                             <i class="fas fa-cog text-xl"></i>
                         </button>
-                        <button @click="handleLogout" class="text-white opacity-80 hover:opacity-100" title="Sair">
+                        <button @click="handleLogout" class="text-white opacity-80 hover:opacity-100 transition-opacity" title="Sair">
                             <i class="fas fa-sign-out-alt text-xl"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- Navegador de Meses -->
-                <div class="flex items-center justify-between bg-emerald-700/50 rounded-lg p-2 mb-4">
-                    <button @click="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-emerald-600 transition-colors">
+                <div class="flex items-center justify-between bg-emerald-700/50 rounded-lg p-2 mb-4 backdrop-blur-sm">
+                    <button @click="changeMonth(-1)" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-emerald-600/50 transition-colors active:scale-90">
                         <i class="fas fa-chevron-left text-emerald-100"></i>
                     </button>
-                    <span class="font-bold text-lg capitalize tracking-wide">{{ currentMonthDisplay }}</span>
-                    <button @click="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-emerald-600 transition-colors">
+                    <span class="font-bold text-lg capitalize tracking-wide select-none">{{ currentMonthDisplay }}</span>
+                    <button @click="changeMonth(1)" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-emerald-600/50 transition-colors active:scale-90">
                         <i class="fas fa-chevron-right text-emerald-100"></i>
                     </button>
                 </div>
 
                 <div class="space-y-1">
-                    <p class="text-emerald-100 text-sm">Disponível</p>
+                    <p class="text-emerald-100 text-sm flex items-center gap-1">
+                        Disponível
+                        <span v-if="isCustomLimit" class="bg-emerald-400 text-emerald-900 text-[10px] px-1.5 rounded-full font-bold uppercase tracking-wider">Personalizado</span>
+                    </p>
                     <div class="text-3xl font-bold tracking-tight">
                         {{ formatCurrency(remainingBudget) }}
                     </div>
-                    <div class="flex justify-between text-xs text-emerald-100 mt-2">
+                    <div class="flex justify-between text-xs text-emerald-100 mt-2 font-medium">
                         <span>Gasto Total: {{ formatCurrency(totalSpent) }}</span>
-                        <span>Limite: {{ formatCurrency(monthlyLimit) }}</span>
+                        <span>Limite: {{ formatCurrency(currentMonthlyLimit) }}</span>
                     </div>
                 </div>
 
@@ -152,22 +163,29 @@
             </header>
 
             <!-- Configurações (Modal Inline) -->
-            <div v-if="showSettings" class="bg-emerald-700 p-4 text-white shadow-inner animate-fade-in shrink-0">
-                <label class="block text-xs uppercase tracking-wide opacity-75 mb-1">Definir Limite Mensal</label>
+            <div v-if="showSettings" class="bg-emerald-700 p-4 text-white shadow-inner animate-fade-in shrink-0 border-t border-emerald-600">
+                <label class="block text-xs uppercase tracking-wide opacity-75 mb-2 flex justify-between">
+                    <span>Limite para <strong class="text-white capitalize">{{ currentMonthDisplay }}</strong></span>
+                    <span class="text-[10px] opacity-60">Altera apenas este mês</span>
+                </label>
                 <div class="flex gap-2">
-                    <input 
-                        type="number" 
-                        v-model="tempLimit" 
-                        class="flex-1 bg-emerald-800 text-white rounded px-3 py-2 outline-none focus:ring-2 focus:ring-white/50"
-                    >
-                    <button @click="saveLimit" class="bg-white text-emerald-700 px-4 py-2 rounded font-bold text-sm">OK</button>
+                    <div class="relative flex-1">
+                        <span class="absolute left-3 top-2 text-emerald-200">R$</span>
+                        <input 
+                            type="number" 
+                            v-model="tempLimit" 
+                            class="w-full bg-emerald-800 text-white rounded px-3 py-2 pl-8 outline-none focus:ring-2 focus:ring-white/50 font-bold"
+                            placeholder="0,00"
+                        >
+                    </div>
+                    <button @click="saveLimit" class="bg-white text-emerald-700 px-6 py-2 rounded font-bold text-sm shadow hover:bg-emerald-50 active:scale-95 transition-all">Salvar</button>
                 </div>
             </div>
 
             <!-- Conteúdo Principal -->
             <main class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar pb-24">
                 
-                <!-- Resumo por Tipo (Crédito vs Débito) -->
+                <!-- Resumo por Tipo -->
                 <div class="grid grid-cols-2 gap-3" v-if="filteredTransactions.length > 0">
                     <!-- Card Débito -->
                     <div class="bg-orange-50 p-3 rounded-2xl border border-orange-100 flex flex-col items-center shadow-sm">
@@ -195,7 +213,7 @@
                 </div>
 
                 <div v-else-if="filteredTransactions.length === 0" class="text-center text-gray-400 mt-10 opacity-60">
-                    <i class="fas fa-calendar-times text-4xl mb-2"></i>
+                    <i class="fas fa-calendar-alt text-4xl mb-2"></i>
                     <p>Nenhum gasto em <span class="capitalize">{{ currentMonthDisplay }}</span>.</p>
                 </div>
 
@@ -269,7 +287,7 @@
                             >
                         </div>
 
-                        <!-- Data e Hora (Novo Campo) -->
+                        <!-- Data e Hora -->
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Data e Hora</label>
                             <input 
@@ -346,7 +364,11 @@
             setup() {
                 const user = ref(null);
                 const transactions = ref([]);
-                const monthlyLimit = ref(2000);
+                
+                // Novos estados para limites
+                const monthlyLimitsMap = ref({}); // Armazena { "2023-11": 3000, "2023-12": 4000 }
+                const defaultLimit = ref(2000);
+                
                 const loading = ref(false);
                 
                 // Date & Month State
@@ -368,7 +390,7 @@
                     amount: '',
                     description: '',
                     type: 'debit',
-                    customDate: '' // Novo campo
+                    customDate: '' 
                 });
 
                 // --- Methods para Data/Mês ---
@@ -377,15 +399,38 @@
                     const d = new Date(currentDate.value);
                     d.setMonth(d.getMonth() + delta);
                     currentDate.value = d;
+                    // Ao mudar o mês, feche as configurações para evitar confusão
+                    showSettings.value = false;
                 };
+
+                const currentMonthKey = computed(() => {
+                    // Retorna chave única para o mês, ex: "2023-11"
+                    const m = currentDate.value.getMonth() + 1; // 1-12
+                    const y = currentDate.value.getFullYear();
+                    return `${y}-${m.toString().padStart(2, '0')}`;
+                });
 
                 const currentMonthDisplay = computed(() => {
                     return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentDate.value);
                 });
 
-                // --- Computed Filtered Logic ---
+                // --- Lógica de Limite Mensal ---
 
-                // Todas as computadas agora dependem de "filteredTransactions" em vez de "transactions" puros
+                const currentMonthlyLimit = computed(() => {
+                    // Verifica se existe limite específico para este mês no mapa
+                    if (monthlyLimitsMap.value && monthlyLimitsMap.value[currentMonthKey.value]) {
+                        return monthlyLimitsMap.value[currentMonthKey.value];
+                    }
+                    // Se não, retorna o padrão
+                    return defaultLimit.value;
+                });
+
+                const isCustomLimit = computed(() => {
+                    // Helper para UI saber se é um limite customizado
+                    return monthlyLimitsMap.value && monthlyLimitsMap.value[currentMonthKey.value] !== undefined;
+                });
+
+                // --- Computed Filtered Logic ---
                 
                 const filteredTransactions = computed(() => {
                     const targetMonth = currentDate.value.getMonth();
@@ -423,12 +468,12 @@
                 });
 
                 const remainingBudget = computed(() => {
-                    return monthlyLimit.value - totalSpent.value;
+                    return currentMonthlyLimit.value - totalSpent.value;
                 });
 
                 const progressPercentage = computed(() => {
-                    if (monthlyLimit.value <= 0) return 100;
-                    const pct = (totalSpent.value / monthlyLimit.value) * 100;
+                    if (currentMonthlyLimit.value <= 0) return 100;
+                    const pct = (totalSpent.value / currentMonthlyLimit.value) * 100;
                     return Math.min(pct, 100);
                 });
 
@@ -462,6 +507,7 @@
                         try {
                             await signOut(auth);
                             transactions.value = [];
+                            monthlyLimitsMap.value = {};
                         } catch (error) {
                             console.error("Erro ao sair", error);
                         }
@@ -479,9 +525,8 @@
                 };
 
                 const openModal = () => {
-                    // Preencher data atual formatada para o input datetime-local
                     const now = new Date();
-                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); // Ajuste fuso
+                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
                     const defaultDate = now.toISOString().slice(0, 16);
 
                     newTransaction.value = { 
@@ -502,18 +547,31 @@
 
                 const toggleSettings = () => {
                     showSettings.value = !showSettings.value;
-                    if (showSettings.value) tempLimit.value = monthlyLimit.value;
+                    if (showSettings.value) {
+                        // Ao abrir, preenche com o valor do mês ATUAL
+                        tempLimit.value = currentMonthlyLimit.value;
+                    }
                 };
 
                 const saveLimit = async () => {
                     if (!user.value || tempLimit.value < 0) return;
                     try {
                         const settingsRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'settings', 'config');
-                        await setDoc(settingsRef, { monthlyLimit: parseFloat(tempLimit.value) }, { merge: true });
-                        monthlyLimit.value = parseFloat(tempLimit.value);
+                        
+                        // Cria objeto de atualização dinâmica
+                        // Salva dentro de um map "monthlyLimits" com a chave do mês atual
+                        const updateData = {};
+                        updateData[`monthlyLimits.${currentMonthKey.value}`] = parseFloat(tempLimit.value);
+
+                        await setDoc(settingsRef, updateData, { merge: true });
+                        
+                        // Atualiza localmente para feedback instantâneo (o snapshot vai confirmar depois)
+                        monthlyLimitsMap.value[currentMonthKey.value] = parseFloat(tempLimit.value);
+                        
                         showSettings.value = false;
                     } catch (e) {
                         console.error("Error saving limit", e);
+                        alert("Erro ao salvar limite.");
                     }
                 };
 
@@ -522,17 +580,15 @@
 
                     try {
                         const val = parseFloat(newTransaction.value.amount);
-                        // Converter string do input para objeto Date
                         const selectedDate = new Date(newTransaction.value.customDate);
 
                         await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), {
                             amount: val,
                             description: newTransaction.value.description,
                             type: newTransaction.value.type,
-                            date: selectedDate // Firestore converte JS Date para Timestamp automaticamente
+                            date: selectedDate 
                         });
                         
-                        // Atualizar a visualização para o mês em que a compra foi adicionada
                         currentDate.value = new Date(selectedDate);
                         
                         closeModal();
@@ -553,28 +609,24 @@
 
                 // Lifecycle
                 onMounted(async () => {
-                    // A linha abaixo foi REMOVIDA para evitar o erro de mismatch de token
-                    /*
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    }
-                    */
-                    
                     onAuthStateChanged(auth, (u) => {
                         user.value = u;
                         if (u) {
                             loading.value = true;
-                            // 1. Config
+                            // 1. Config (Agora carrega o mapa de limites)
                             const settingsRef = doc(db, 'artifacts', appId, 'users', u.uid, 'settings', 'config');
                             onSnapshot(settingsRef, (docSnap) => {
                                 if (docSnap.exists()) {
-                                    monthlyLimit.value = docSnap.data().monthlyLimit || 2000;
+                                    const data = docSnap.data();
+                                    // Carrega o padrão antigo se existir, ou define 2000
+                                    defaultLimit.value = data.monthlyLimit || 2000; 
+                                    // Carrega o mapa de meses (ou vazio se não existir)
+                                    monthlyLimitsMap.value = data.monthlyLimits || {};
                                 }
                             });
 
-                            // 2. Gastos (Carrega TUDO e filtra em memória)
+                            // 2. Gastos
                             const expensesRef = collection(db, 'artifacts', appId, 'users', u.uid, 'expenses');
-                            // Nota: Sem orderBy na query para evitar erro de índice composto
                             onSnapshot(expensesRef, (snapshot) => {
                                 transactions.value = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                                 loading.value = false;
@@ -597,12 +649,13 @@
                 });
 
                 return {
-                    user, transactions, monthlyLimit, loading,
+                    user, transactions, loading,
                     loginEmail, loginPassword, loginError, isLoggingIn, handleLogin, handleLogout,
                     showModal, showSettings, newTransaction, tempLimit, amountInput,
                     isValidTransaction, totalSpent, totalCredit, totalDebit, remainingBudget, progressPercentage, progressBarColor, 
-                    filteredTransactions, // Usar este para o loop
-                    currentMonthDisplay, changeMonth, // Novos retornos
+                    filteredTransactions, 
+                    currentMonthDisplay, changeMonth, 
+                    currentMonthlyLimit, isCustomLimit, // Retornos novos para o template
                     formatCurrency, formatDate, openModal, closeModal, toggleSettings, saveLimit, addTransaction, deleteTransaction
                 };
             }
