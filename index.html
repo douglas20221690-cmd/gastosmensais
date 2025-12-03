@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <!-- Bibliotecas Externas (Serão cacheadas pelo SW) -->
+    <!-- Bibliotecas Externas -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -59,7 +59,7 @@
                     </button>
                 </form>
             </div>
-            <p class="text-emerald-100/60 text-xs mt-8">Versão Offline Ativa • PWA</p>
+            <p class="text-emerald-100/60 text-xs mt-8">Versão 1.4.0 (Edit + Fix) • PWA</p>
         </div>
         
         <!-- TELA DO APP -->
@@ -141,18 +141,26 @@
                             <p class="text-xs text-gray-400">{{ formatDate(t.date) }} • {{ t.type === 'credit' ? 'Crédito' : 'Débito' }}</p>
                         </div>
                     </div>
-                    <div class="flex flex-col items-end">
-                        <span class="font-bold text-gray-800">- {{ formatCurrency(t.amount) }}</span>
-                        <button @click="deleteTransaction(t.id)" class="text-red-400 text-xs mt-1 p-1">Excluir</button>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-gray-800 text-lg">- {{ formatCurrency(t.amount) }}</span>
+                        <!-- Botão Editar -->
+                        <button @click="editTransaction(t)" class="w-8 h-8 rounded-full bg-gray-50 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 flex items-center justify-center transition-colors shadow-sm border border-gray-100">
+                            <i class="fas fa-pen text-xs"></i>
+                        </button>
+                        <!-- Botão Excluir -->
+                        <button @click="deleteTransaction(t.id)" class="w-8 h-8 rounded-full bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors shadow-sm border border-gray-100">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
                     </div>
                 </div>
             </main>
 
             <button @click="openModal" class="absolute bottom-6 right-6 w-14 h-14 bg-emerald-600 text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-105 active:scale-95 transition-transform z-20"><i class="fas fa-plus"></i></button>
 
+            <!-- Modal Add/Edit -->
             <div v-if="showModal" class="absolute inset-0 bg-black/50 z-30 flex items-end sm:items-center justify-center backdrop-blur-sm" @click.self="closeModal">
                 <div class="bg-white w-full sm:w-96 p-6 rounded-t-3xl sm:rounded-2xl shadow-2xl transform transition-transform pb-safe">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">Novo Gasto</h2>
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">{{ editingId ? 'Editar Gasto' : 'Novo Gasto' }}</h2>
                     <div class="space-y-4">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Valor</label>
@@ -164,7 +172,7 @@
                             <button @click="newTransaction.type = 'debit'" class="py-3 rounded-lg border-2 font-medium flex flex-col items-center gap-1" :class="newTransaction.type === 'debit' ? 'border-orange-500 bg-orange-50 text-orange-600' : 'border-gray-100 text-gray-400'"><i class="fas fa-money-bill-wave"></i> Débito</button>
                             <button @click="newTransaction.type = 'credit'" class="py-3 rounded-lg border-2 font-medium flex flex-col items-center gap-1" :class="newTransaction.type === 'credit' ? 'border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-gray-100 text-gray-400'"><i class="fas fa-credit-card"></i> Crédito</button>
                         </div>
-                        <button @click="addTransaction" :disabled="!isValidTransaction" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-emerald-700 disabled:opacity-50 mt-4">Confirmar</button>
+                        <button @click="saveTransaction" :disabled="!isValidTransaction" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-emerald-700 disabled:opacity-50 mt-4">{{ editingId ? 'Salvar Alterações' : 'Confirmar' }}</button>
                     </div>
                     <button @click="closeModal" class="w-full text-center mt-4 text-gray-400 text-sm py-2">Cancelar</button>
                 </div>
@@ -176,7 +184,7 @@
         const { createApp, ref, computed, onMounted } = Vue;
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, doc, setDoc, deleteDoc, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, doc, setDoc, deleteDoc, updateDoc, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyBynG1L1voQ-GJnjwv7KeKV6p64eDxD8KY",
@@ -191,7 +199,6 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- CORREÇÃO OFFLINE: Ativa banco de dados local ---
         enableIndexedDbPersistence(db).catch((err) => {
             console.log("Persistência offline:", err.code);
         });
@@ -202,15 +209,12 @@
             setup() {
                 const user = ref(null);
                 const transactions = ref([]);
-                
-                // Lógica de Limites por Mês
                 const monthlyLimitsMap = ref({}); 
                 const defaultLimit = ref(2000);
-                
                 const loading = ref(false);
                 const currentDate = ref(new Date());
 
-                // Login
+                // Auth
                 const loginEmail = ref('douglasrgomes@gmail.com');
                 const loginPassword = ref('');
                 const loginError = ref('');
@@ -221,6 +225,7 @@
                 const showSettings = ref(false);
                 const tempLimit = ref(2000);
                 const amountInput = ref(null);
+                const editingId = ref(null); // ID do item sendo editado
                 const newTransaction = ref({ amount: '', description: '', type: 'debit', customDate: '' });
 
                 // Helpers
@@ -235,20 +240,16 @@
                     const y = currentDate.value.getFullYear();
                     return `${y}-${m.toString().padStart(2, '0')}`;
                 });
-                const currentMonthDisplay = computed(() => {
-                    return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentDate.value);
-                });
+                const currentMonthDisplay = computed(() => new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentDate.value));
                 const currentMonthlyLimit = computed(() => {
-                    if (monthlyLimitsMap.value && monthlyLimitsMap.value[currentMonthKey.value]) {
+                    if (monthlyLimitsMap.value && monthlyLimitsMap.value[currentMonthKey.value] !== undefined) {
                         return monthlyLimitsMap.value[currentMonthKey.value];
                     }
                     return defaultLimit.value;
                 });
-                const isCustomLimit = computed(() => {
-                    return monthlyLimitsMap.value && monthlyLimitsMap.value[currentMonthKey.value] !== undefined;
-                });
+                const isCustomLimit = computed(() => monthlyLimitsMap.value && monthlyLimitsMap.value[currentMonthKey.value] !== undefined);
 
-                // Filtragem e Totais
+                // Filtragem
                 const filteredTransactions = computed(() => {
                     const targetMonth = currentDate.value.getMonth();
                     const targetYear = currentDate.value.getFullYear();
@@ -258,6 +259,7 @@
                         return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
                     }).sort((a, b) => (b.date ? b.date.toDate() : 0) - (a.date ? a.date.toDate() : 0));
                 });
+                
                 const isValidTransaction = computed(() => newTransaction.value.amount > 0 && newTransaction.value.description.trim() !== '' && newTransaction.value.customDate);
                 const totalSpent = computed(() => filteredTransactions.value.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
                 const totalCredit = computed(() => filteredTransactions.value.filter(t => t.type === 'credit').reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
@@ -277,47 +279,84 @@
                 // Ações
                 const handleLogin = async () => {
                     isLoggingIn.value = true;
-                    loginError.value = '';
                     try { await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value); } 
                     catch (error) { loginError.value = error.code === 'auth/invalid-credential' ? 'E-mail/senha incorretos.' : 'Erro: ' + error.message; } 
                     finally { isLoggingIn.value = false; }
                 };
-                const handleLogout = async () => {
-                    if(confirm('Deseja sair?')) { await signOut(auth); transactions.value = []; monthlyLimitsMap.value = {}; }
-                };
+                const handleLogout = async () => { if(confirm('Deseja sair?')) { await signOut(auth); transactions.value = []; monthlyLimitsMap.value = {}; } };
                 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
                 const formatDate = (timestamp) => {
                     if (!timestamp) return 'Agora';
                     return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(timestamp.toDate());
                 };
+                
+                // --- Ações de Modal (ADD/EDIT) ---
                 const openModal = () => {
+                    editingId.value = null; // Modo criação
                     const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
                     newTransaction.value = { amount: '', description: '', type: 'debit', customDate: now.toISOString().slice(0, 16) };
                     showModal.value = true; setTimeout(() => amountInput.value?.focus(), 100);
                 };
+
+                const editTransaction = (t) => {
+                    editingId.value = t.id; // Modo edição
+                    // Converte timestamp do Firestore para formato datetime-local
+                    const dateObj = t.date.toDate();
+                    dateObj.setMinutes(dateObj.getMinutes() - dateObj.getTimezoneOffset());
+                    
+                    newTransaction.value = {
+                        amount: t.amount,
+                        description: t.description,
+                        type: t.type,
+                        customDate: dateObj.toISOString().slice(0, 16)
+                    };
+                    showModal.value = true;
+                };
+
                 const closeModal = () => showModal.value = false;
+                
                 const toggleSettings = () => { showSettings.value = !showSettings.value; if(showSettings.value) tempLimit.value = currentMonthlyLimit.value; };
+                
                 const saveLimit = async () => {
                     if (!user.value || tempLimit.value < 0) return;
                     try {
                         const settingsRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'settings', 'config');
-                        const updateData = {}; updateData[`monthlyLimits.${currentMonthKey.value}`] = parseFloat(tempLimit.value);
+                        // CORREÇÃO 1: Salvando como objeto aninhado para garantir estrutura de MAP no Firestore
+                        const updateData = { monthlyLimits: {} };
+                        updateData.monthlyLimits[currentMonthKey.value] = parseFloat(tempLimit.value);
+                        
+                        // setDoc com merge respeita objetos aninhados se passados corretamente
                         await setDoc(settingsRef, updateData, { merge: true });
+                        
                         monthlyLimitsMap.value[currentMonthKey.value] = parseFloat(tempLimit.value);
                         showSettings.value = false;
                     } catch (e) { console.error("Erro limite", e); alert("Erro ao salvar."); }
                 };
-                const addTransaction = async () => {
+
+                const saveTransaction = async () => {
                     if (!user.value || !isValidTransaction.value) return;
                     try {
                         const selectedDate = new Date(newTransaction.value.customDate);
-                        await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), {
-                            amount: parseFloat(newTransaction.value.amount), description: newTransaction.value.description, type: newTransaction.value.type, date: selectedDate 
-                        });
-                        currentDate.value = new Date(selectedDate);
+                        const transactionData = {
+                            amount: parseFloat(newTransaction.value.amount),
+                            description: newTransaction.value.description,
+                            type: newTransaction.value.type,
+                            date: selectedDate
+                        };
+
+                        if (editingId.value) {
+                            // UPDATE
+                            await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), transactionData);
+                        } else {
+                            // CREATE
+                            await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), transactionData);
+                        }
+                        
+                        currentDate.value = new Date(selectedDate); // Pula para o mês da transação
                         closeModal();
-                    } catch (e) { alert("Erro ao salvar."); }
+                    } catch (e) { console.error(e); alert("Erro ao salvar."); }
                 };
+
                 const deleteTransaction = async (id) => { if (confirm("Remover?")) await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id)); };
 
                 onMounted(async () => {
@@ -325,14 +364,12 @@
                         user.value = u;
                         if (u) {
                             loading.value = true;
-                            // Carrega Configs e Limites
                             onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'settings', 'config'), (docSnap) => {
                                 if (docSnap.exists()) {
                                     defaultLimit.value = docSnap.data().monthlyLimit || 2000; 
                                     monthlyLimitsMap.value = docSnap.data().monthlyLimits || {};
                                 }
                             });
-                            // Carrega Gastos
                             onSnapshot(collection(db, 'artifacts', appId, 'users', u.uid, 'expenses'), (snapshot) => {
                                 transactions.value = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                                 loading.value = false;
@@ -342,20 +379,15 @@
                             loading.value = false;
                         }
                     });
-                    
-                    // Tratamento de erro no registro do SW para o ambiente de preview
-                    if ('serviceWorker' in navigator) {
-                        navigator.serviceWorker.register('./sw.js')
-                            .then(reg => console.log('SW Registrado'))
-                            .catch(err => console.log('SW Falhou no preview (normal):', err));
-                    }
+                    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
                 });
 
                 return {
                     user, transactions, loading, loginEmail, loginPassword, loginError, isLoggingIn, handleLogin, handleLogout,
                     showModal, showSettings, newTransaction, tempLimit, amountInput, isValidTransaction, totalSpent, totalCredit, totalDebit, 
                     remainingBudget, progressPercentage, progressBarColor, filteredTransactions, currentMonthDisplay, changeMonth, 
-                    currentMonthlyLimit, isCustomLimit, formatCurrency, formatDate, openModal, closeModal, toggleSettings, saveLimit, addTransaction, deleteTransaction
+                    currentMonthlyLimit, isCustomLimit, formatCurrency, formatDate, openModal, closeModal, toggleSettings, 
+                    saveLimit, saveTransaction, deleteTransaction, editTransaction, editingId
                 };
             }
         }).mount('#app');
