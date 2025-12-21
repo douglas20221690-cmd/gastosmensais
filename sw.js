@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financas-pwa-v4-offline';
+const CACHE_NAME = 'financas-pwa-v1.5.0-offline';
 const ASSETS = [
   './index.html',
   './manifest.json',
@@ -37,7 +37,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       return cachedResponse || fetch(event.request).then((networkResponse) => {
-         // Opcional: Cache dinâmico para outras coisas se precisar
          return networkResponse;
       });
     })
