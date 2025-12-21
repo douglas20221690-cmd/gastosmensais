@@ -26,7 +26,13 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        /* Ajuste para input numérico sem setas */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden">
@@ -59,7 +65,7 @@
                     </button>
                 </form>
             </div>
-            <p class="text-emerald-100/60 text-xs mt-8">Versão 1.4.0 (Edit + Fix) • PWA</p>
+            <p class="text-emerald-100/60 text-xs mt-8">Versão 1.5.0 (Calc + AutoDecimal) • PWA</p>
         </div>
         
         <!-- TELA DO APP -->
@@ -159,13 +165,30 @@
 
             <!-- Modal Add/Edit -->
             <div v-if="showModal" class="absolute inset-0 bg-black/50 z-30 flex items-end sm:items-center justify-center backdrop-blur-sm" @click.self="closeModal">
-                <div class="bg-white w-full sm:w-96 p-6 rounded-t-3xl sm:rounded-2xl shadow-2xl transform transition-transform pb-safe">
+                <div class="bg-white w-full sm:w-96 p-6 rounded-t-3xl sm:rounded-2xl shadow-2xl transform transition-transform pb-safe animate-slide-up relative overflow-hidden">
                     <h2 class="text-xl font-bold text-gray-800 mb-4">{{ editingId ? 'Editar Gasto' : 'Novo Gasto' }}</h2>
                     <div class="space-y-4">
+                        <!-- INPUT DE VALOR ESTILO ATM -->
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Valor</label>
-                            <div class="relative"><span class="absolute left-3 top-3 text-gray-400">R$</span><input type="number" v-model="newTransaction.amount" step="0.01" ref="amountInput" class="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-lg border-none focus:ring-2 focus:ring-emerald-500 text-lg font-bold text-gray-800" placeholder="0,00"></div>
+                            <div class="relative flex items-center">
+                                <span class="absolute left-3 text-emerald-600 font-bold text-lg">R$</span>
+                                <input 
+                                    type="tel" 
+                                    inputmode="numeric"
+                                    :value="formattedAmountDisplay"
+                                    @input="handleAmountInput"
+                                    ref="amountInput" 
+                                    class="w-full pl-10 pr-12 py-3 bg-gray-50 rounded-lg border-none focus:ring-2 focus:ring-emerald-500 text-2xl font-bold text-gray-800 tracking-wide outline-none" 
+                                    placeholder="0,00"
+                                >
+                                <!-- Botão Calculadora -->
+                                <button @click="showCalculator = true" class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center transition-colors" title="Calculadora">
+                                    <i class="fas fa-calculator"></i>
+                                </button>
+                            </div>
                         </div>
+                        
                         <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Descrição</label><input type="text" v-model="newTransaction.description" class="w-full px-4 py-3 bg-gray-50 rounded-lg border-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex: Supermercado"></div>
                         <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Data e Hora</label><input type="datetime-local" v-model="newTransaction.customDate" class="w-full px-4 py-3 bg-gray-50 rounded-lg border-none focus:ring-2 focus:ring-emerald-500 text-gray-700"></div>
                         <div class="grid grid-cols-2 gap-3">
@@ -175,13 +198,55 @@
                         <button @click="saveTransaction" :disabled="!isValidTransaction" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-emerald-700 disabled:opacity-50 mt-4">{{ editingId ? 'Salvar Alterações' : 'Confirmar' }}</button>
                     </div>
                     <button @click="closeModal" class="w-full text-center mt-4 text-gray-400 text-sm py-2">Cancelar</button>
+
+                    <!-- CALCULADORA OVERLAY -->
+                    <div v-if="showCalculator" class="absolute inset-0 z-50 bg-white flex flex-col animate-slide-up">
+                        <div class="bg-emerald-600 p-4 flex justify-between items-center text-white shrink-0">
+                            <span class="font-bold"><i class="fas fa-calculator mr-2"></i>Calculadora</span>
+                            <button @click="showCalculator = false" class="p-2 bg-white/20 rounded-full hover:bg-white/30"><i class="fas fa-times"></i></button>
+                        </div>
+                        <!-- Visor -->
+                        <div class="bg-gray-50 p-6 text-right shrink-0 border-b border-gray-200">
+                            <div class="text-gray-400 text-sm h-6 mb-1">{{ calcHistory }}</div>
+                            <div class="text-4xl font-bold text-gray-800 truncate tracking-tight">{{ calcDisplay || '0' }}</div>
+                        </div>
+                        <!-- Teclado -->
+                        <div class="flex-1 grid grid-cols-4 gap-0.5 bg-gray-200 border-t border-gray-200">
+                            <button @click="calcClear" class="bg-red-50 text-red-600 font-bold text-lg hover:bg-red-100">C</button>
+                            <button @click="calcBackspace" class="bg-gray-50 text-gray-600 font-bold text-lg hover:bg-gray-100"><i class="fas fa-backspace"></i></button>
+                            <button @click="calcAppend('%')" class="bg-gray-50 text-emerald-600 font-bold text-lg hover:bg-gray-100">%</button>
+                            <button @click="calcAppend('/')" class="bg-emerald-50 text-emerald-700 font-bold text-xl hover:bg-emerald-100">÷</button>
+                            
+                            <button @click="calcAppend('7')" class="bg-white text-gray-700 font-bold text-2xl hover:bg-gray-50">7</button>
+                            <button @click="calcAppend('8')" class="bg-white text-gray-700 font-bold text-2xl hover:bg-gray-50">8</button>
+                            <button @click="calcAppend('9')" class="bg-white text-gray-700 font-bold text-2xl hover:bg-gray-50">9</button>
+                            <button @click="calcAppend('*')" class="bg-emerald-50 text-emerald-700 font-bold text-xl hover:bg-emerald-100">×</button>
+
+                            <button @click="calcAppend('4')" class="bg-white text-gray-700 font-bold text-2xl hover:bg-gray-50">4</button>
+                            <button @click="calcAppend('5')" class="bg-white text-gray-700 font-bold text-2xl hover:bg-gray-50">5</button>
+                            <button @click="calcAppend('6')" class="bg-white text-gray-700 font-bold text-2xl hover:bg-gray-50">6</button>
+                            <button @click="calcAppend('-')" class="bg-emerald-50 text-emerald-700 font-bold text-xl hover:bg-emerald-100">−</button>
+
+                            <button @click="calcAppend('1')" class="bg-white text-gray-700 font-bold text-2xl hover:bg-gray-50">1</button>
+                            <button @click="calcAppend('2')" class="bg-white text-gray-700 font-bold text-2xl hover:bg-gray-50">2</button>
+                            <button @click="calcAppend('3')" class="bg-white text-gray-700 font-bold text-2xl hover:bg-gray-50">3</button>
+                            <button @click="calcAppend('+')" class="bg-emerald-50 text-emerald-700 font-bold text-xl hover:bg-emerald-100">+</button>
+
+                            <button @click="calcAppend('0')" class="col-span-2 bg-white text-gray-700 font-bold text-2xl hover:bg-gray-50 rounded-bl-lg">0</button>
+                            <button @click="calcAppend('.')" class="bg-white text-gray-700 font-bold text-2xl hover:bg-gray-50">,</button>
+                            <button @click="calcCalculate" class="bg-emerald-600 text-white font-bold text-2xl hover:bg-emerald-700">=</button>
+                        </div>
+                        <button @click="useCalcResult" class="w-full bg-emerald-800 text-emerald-50 py-4 font-bold text-lg uppercase shadow-inner hover:bg-emerald-900">
+                            USAR VALOR <i class="fas fa-check ml-2"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </template>
     </div>
 
     <script type="module">
-        const { createApp, ref, computed, onMounted } = Vue;
+        const { createApp, ref, computed, onMounted, nextTick } = Vue;
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, doc, setDoc, deleteDoc, updateDoc, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
@@ -225,10 +290,92 @@
                 const showSettings = ref(false);
                 const tempLimit = ref(2000);
                 const amountInput = ref(null);
-                const editingId = ref(null); // ID do item sendo editado
-                const newTransaction = ref({ amount: '', description: '', type: 'debit', customDate: '' });
+                const editingId = ref(null);
+                // Inicializa customDate no formato ISO para datetime-local
+                const getLocalISO = () => {
+                    const now = new Date();
+                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                    return now.toISOString().slice(0, 16);
+                };
+                const newTransaction = ref({ amount: 0, description: '', type: 'debit', customDate: getLocalISO() });
 
-                // Helpers
+                // --- Lógica de Input ATM ---
+                // O valor real (float) fica em newTransaction.amount
+                // O display formatado (string) é gerado pelo computed
+                const formattedAmountDisplay = computed(() => {
+                    if (newTransaction.value.amount === 0) return '';
+                    return newTransaction.value.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                });
+
+                const handleAmountInput = (e) => {
+                    // Pega apenas números
+                    let val = e.target.value.replace(/\D/g, '');
+                    if (!val) {
+                        newTransaction.value.amount = 0;
+                        return;
+                    }
+                    // Converte para float (ex: 2570 -> 25.70)
+                    const floatVal = parseFloat(val) / 100;
+                    newTransaction.value.amount = floatVal;
+                };
+
+                // --- Lógica da Calculadora ---
+                const showCalculator = ref(false);
+                const calcDisplay = ref('');
+                const calcHistory = ref('');
+
+                const calcAppend = (char) => {
+                    // Evita operadores duplicados
+                    const ops = ['+', '-', '*', '/', '%', '.'];
+                    if (ops.includes(char) && ops.includes(calcDisplay.value.slice(-1))) return;
+                    
+                    // Tratamento da vírgula
+                    if (char === '.') {
+                        const parts = calcDisplay.value.split(/[\+\-\*\/]/);
+                        const currentNum = parts[parts.length - 1];
+                        if (currentNum.includes('.')) return; // Já tem ponto neste número
+                    }
+
+                    calcDisplay.value += char;
+                };
+
+                const calcClear = () => { calcDisplay.value = ''; calcHistory.value = ''; };
+                
+                const calcBackspace = () => { calcDisplay.value = calcDisplay.value.slice(0, -1); };
+
+                const calcCalculate = () => {
+                    try {
+                        if (!calcDisplay.value) return;
+                        // Substitui % por /100
+                        let expression = calcDisplay.value.replace(/%/g, '/100');
+                        // Avalia a expressão com segurança básica (apenas números e operadores permitidos pela UI)
+                        const result = Function('"use strict";return (' + expression + ')')();
+                        calcHistory.value = calcDisplay.value + ' =';
+                        calcDisplay.value = String(result);
+                    } catch (e) {
+                        calcDisplay.value = 'Erro';
+                        setTimeout(() => calcDisplay.value = '', 1000);
+                    }
+                };
+
+                const useCalcResult = () => {
+                    if (calcDisplay.value) {
+                        // Se houver algo pendente, calcula primeiro
+                        if (['+', '-', '*', '/'].some(op => calcDisplay.value.includes(op))) {
+                            calcCalculate();
+                        }
+                        
+                        let val = parseFloat(calcDisplay.value);
+                        if (!isNaN(val)) {
+                            // Arredonda para 2 casas decimais para compatibilidade monetária
+                            val = Math.round(val * 100) / 100;
+                            newTransaction.value.amount = val;
+                        }
+                    }
+                    showCalculator.value = false;
+                };
+
+                // Helpers Gerais
                 const changeMonth = (delta) => {
                     const d = new Date(currentDate.value);
                     d.setMonth(d.getMonth() + delta);
@@ -293,14 +440,14 @@
                 // --- Ações de Modal (ADD/EDIT) ---
                 const openModal = () => {
                     editingId.value = null; // Modo criação
-                    const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-                    newTransaction.value = { amount: '', description: '', type: 'debit', customDate: now.toISOString().slice(0, 16) };
-                    showModal.value = true; setTimeout(() => amountInput.value?.focus(), 100);
+                    newTransaction.value = { amount: 0, description: '', type: 'debit', customDate: getLocalISO() };
+                    calcDisplay.value = ''; // Reset calc
+                    showModal.value = true; 
+                    nextTick(() => amountInput.value?.focus());
                 };
 
                 const editTransaction = (t) => {
                     editingId.value = t.id; // Modo edição
-                    // Converte timestamp do Firestore para formato datetime-local
                     const dateObj = t.date.toDate();
                     dateObj.setMinutes(dateObj.getMinutes() - dateObj.getTimezoneOffset());
                     
@@ -310,10 +457,11 @@
                         type: t.type,
                         customDate: dateObj.toISOString().slice(0, 16)
                     };
+                    calcDisplay.value = ''; // Reset calc
                     showModal.value = true;
                 };
 
-                const closeModal = () => showModal.value = false;
+                const closeModal = () => { showModal.value = false; showCalculator.value = false; };
                 
                 const toggleSettings = () => { showSettings.value = !showSettings.value; if(showSettings.value) tempLimit.value = currentMonthlyLimit.value; };
                 
@@ -321,13 +469,9 @@
                     if (!user.value || tempLimit.value < 0) return;
                     try {
                         const settingsRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'settings', 'config');
-                        // CORREÇÃO 1: Salvando como objeto aninhado para garantir estrutura de MAP no Firestore
                         const updateData = { monthlyLimits: {} };
                         updateData.monthlyLimits[currentMonthKey.value] = parseFloat(tempLimit.value);
-                        
-                        // setDoc com merge respeita objetos aninhados se passados corretamente
                         await setDoc(settingsRef, updateData, { merge: true });
-                        
                         monthlyLimitsMap.value[currentMonthKey.value] = parseFloat(tempLimit.value);
                         showSettings.value = false;
                     } catch (e) { console.error("Erro limite", e); alert("Erro ao salvar."); }
@@ -345,14 +489,12 @@
                         };
 
                         if (editingId.value) {
-                            // UPDATE
                             await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), transactionData);
                         } else {
-                            // CREATE
                             await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), transactionData);
                         }
                         
-                        currentDate.value = new Date(selectedDate); // Pula para o mês da transação
+                        currentDate.value = new Date(selectedDate);
                         closeModal();
                     } catch (e) { console.error(e); alert("Erro ao salvar."); }
                 };
@@ -387,10 +529,15 @@
                     showModal, showSettings, newTransaction, tempLimit, amountInput, isValidTransaction, totalSpent, totalCredit, totalDebit, 
                     remainingBudget, progressPercentage, progressBarColor, filteredTransactions, currentMonthDisplay, changeMonth, 
                     currentMonthlyLimit, isCustomLimit, formatCurrency, formatDate, openModal, closeModal, toggleSettings, 
-                    saveLimit, saveTransaction, deleteTransaction, editTransaction, editingId
+                    saveLimit, saveTransaction, deleteTransaction, editTransaction, editingId,
+                    // Novos retornos para ATM input e Calculadora
+                    formattedAmountDisplay, handleAmountInput, 
+                    showCalculator, calcDisplay, calcHistory, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult
                 };
             }
         }).mount('#app');
     </script>
 </body>
-</html>
+</html>```
+
+
