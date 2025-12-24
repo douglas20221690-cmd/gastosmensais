@@ -21,7 +21,7 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 
     <style>
-        body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #10b981; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -33,14 +33,65 @@
         /* Ajuste para input numérico sem setas */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+        /* Estilo da Splash Screen (Carregamento Inicial) */
+        #splash-screen {
+            position: fixed;
+            inset: 0;
+            background: #10b981;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+        #splash-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .pulse-logo {
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        .loader-dots span {
+            animation: dots 1.4s infinite both;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 2px;
+        }
+        .loader-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loader-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dots {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden">
 
-    <div id="app" class="flex flex-col h-full relative">
+    <!-- SPLASH SCREEN: Aparece antes do Vue carregar -->
+    <div id="splash-screen">
+        <div class="bg-white/20 p-6 rounded-full mb-6 pulse-logo">
+            <img src="icon.png?v=3" alt="Logo" class="w-20 h-20 object-contain">
+        </div>
+        <div class="loader-dots">
+            <span></span><span></span><span></span>
+        </div>
+        <p class="text-white font-medium mt-4 opacity-80 text-sm">Carregando suas finanças...</p>
+    </div>
+
+    <div id="app" class="flex flex-col h-full relative" v-cloak>
 
         <!-- TELA DE LOGIN -->
-        <div v-if="!user" class="absolute inset-0 z-50 bg-emerald-600 flex flex-col items-center justify-center p-6 animate-fade-in">
+        <div v-if="!user && appReady" class="absolute inset-0 z-50 bg-emerald-600 flex flex-col items-center justify-center p-6 animate-fade-in">
             <div class="bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl">
                 <div class="text-center mb-8">
                     <div class="w-24 h-24 mx-auto mb-4 bg-emerald-100 rounded-full flex items-center justify-center p-4">
@@ -65,11 +116,11 @@
                     </button>
                 </form>
             </div>
-            <p class="text-emerald-100/60 text-xs mt-8">Versão 1.5.0</p>
+            <p class="text-emerald-100/60 text-xs mt-8">Versão 1.5.1</p>
         </div>
         
         <!-- TELA DO APP -->
-        <template v-else>
+        <template v-else-if="user && appReady">
             <header class="bg-emerald-600 text-white p-6 shadow-lg rounded-b-3xl z-10 shrink-0 relative transition-all duration-300">
                 <div class="flex justify-between items-center mb-4">
                     <h1 class="text-xl font-bold flex items-center">
@@ -134,10 +185,10 @@
                     </div>
                 </div>
 
-                <div v-if="loading" class="text-center text-gray-400 mt-10"><i class="fas fa-spinner fa-spin text-2xl"></i><p class="text-sm mt-2">Carregando...</p></div>
+                <div v-if="loading" class="text-center text-gray-400 mt-10"><i class="fas fa-spinner fa-spin text-2xl"></i><p class="text-sm mt-2">Buscando dados...</p></div>
                 <div v-else-if="filteredTransactions.length === 0" class="text-center text-gray-400 mt-10 opacity-60"><i class="fas fa-calendar-alt text-4xl mb-2"></i><p>Nenhum gasto em <span class="capitalize">{{ currentMonthDisplay }}</span>.</p></div>
 
-                <div v-for="t in filteredTransactions" :key="t.id" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center relative group">
+                <div v-for="t in filteredTransactions" :key="t.id" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center relative group animate-fade-in">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm" :class="t.type === 'credit' ? 'bg-indigo-500' : 'bg-orange-500'">
                             <i class="fas" :class="t.type === 'credit' ? 'fa-credit-card' : 'fa-money-bill-wave'"></i>
@@ -248,8 +299,8 @@
     <script type="module">
         const { createApp, ref, computed, onMounted, nextTick } = Vue;
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, doc, setDoc, deleteDoc, updateDoc, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyBynG1L1voQ-GJnjwv7KeKV6p64eDxD8KY",
@@ -272,6 +323,7 @@
 
         createApp({
             setup() {
+                const appReady = ref(false); // Indica se o Firebase Auth já verificou o login
                 const user = ref(null);
                 const transactions = ref([]);
                 const monthlyLimitsMap = ref({}); 
@@ -291,7 +343,6 @@
                 const tempLimit = ref(2000);
                 const amountInput = ref(null);
                 const editingId = ref(null);
-                // Inicializa customDate no formato ISO para datetime-local
                 const getLocalISO = () => {
                     const now = new Date();
                     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -299,83 +350,53 @@
                 };
                 const newTransaction = ref({ amount: 0, description: '', type: 'debit', customDate: getLocalISO() });
 
-                // --- Lógica de Input ATM ---
-                // O valor real (float) fica em newTransaction.amount
-                // O display formatado (string) é gerado pelo computed
+                // Computed e Helpers (Mantidos)
                 const formattedAmountDisplay = computed(() => {
                     if (newTransaction.value.amount === 0) return '';
                     return newTransaction.value.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 });
 
                 const handleAmountInput = (e) => {
-                    // Pega apenas números
                     let val = e.target.value.replace(/\D/g, '');
-                    if (!val) {
-                        newTransaction.value.amount = 0;
-                        return;
-                    }
-                    // Converte para float (ex: 2570 -> 25.70)
-                    const floatVal = parseFloat(val) / 100;
-                    newTransaction.value.amount = floatVal;
+                    if (!val) { newTransaction.value.amount = 0; return; }
+                    newTransaction.value.amount = parseFloat(val) / 100;
                 };
 
-                // --- Lógica da Calculadora ---
                 const showCalculator = ref(false);
                 const calcDisplay = ref('');
                 const calcHistory = ref('');
 
                 const calcAppend = (char) => {
-                    // Evita operadores duplicados
                     const ops = ['+', '-', '*', '/', '%', '.'];
                     if (ops.includes(char) && ops.includes(calcDisplay.value.slice(-1))) return;
-                    
-                    // Tratamento da vírgula
                     if (char === '.') {
                         const parts = calcDisplay.value.split(/[\+\-\*\/]/);
-                        const currentNum = parts[parts.length - 1];
-                        if (currentNum.includes('.')) return; // Já tem ponto neste número
+                        if (parts[parts.length - 1].includes('.')) return;
                     }
-
                     calcDisplay.value += char;
                 };
 
                 const calcClear = () => { calcDisplay.value = ''; calcHistory.value = ''; };
-                
                 const calcBackspace = () => { calcDisplay.value = calcDisplay.value.slice(0, -1); };
-
                 const calcCalculate = () => {
                     try {
                         if (!calcDisplay.value) return;
-                        // Substitui % por /100
                         let expression = calcDisplay.value.replace(/%/g, '/100');
-                        // Avalia a expressão com segurança básica (apenas números e operadores permitidos pela UI)
                         const result = Function('"use strict";return (' + expression + ')')();
                         calcHistory.value = calcDisplay.value + ' =';
                         calcDisplay.value = String(result);
-                    } catch (e) {
-                        calcDisplay.value = 'Erro';
-                        setTimeout(() => calcDisplay.value = '', 1000);
-                    }
+                    } catch (e) { calcDisplay.value = 'Erro'; setTimeout(() => calcDisplay.value = '', 1000); }
                 };
 
                 const useCalcResult = () => {
                     if (calcDisplay.value) {
-                        // Se houver algo pendente, calcula primeiro
-                        if (['+', '-', '*', '/'].some(op => calcDisplay.value.includes(op))) {
-                            calcCalculate();
-                        }
-                        
+                        if (['+', '-', '*', '/'].some(op => calcDisplay.value.includes(op))) calcCalculate();
                         let val = parseFloat(calcDisplay.value);
-                        if (!isNaN(val)) {
-                            // Arredonda para 2 casas decimais para compatibilidade monetária
-                            val = Math.round(val * 100) / 100;
-                            newTransaction.value.amount = val;
-                        }
+                        if (!isNaN(val)) newTransaction.value.amount = Math.round(val * 100) / 100;
                     }
                     showCalculator.value = false;
                 };
 
-                // Helpers Gerais
                 const changeMonth = (delta) => {
                     const d = new Date(currentDate.value);
                     d.setMonth(d.getMonth() + delta);
@@ -388,15 +409,9 @@
                     return `${y}-${m.toString().padStart(2, '0')}`;
                 });
                 const currentMonthDisplay = computed(() => new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentDate.value));
-                const currentMonthlyLimit = computed(() => {
-                    if (monthlyLimitsMap.value && monthlyLimitsMap.value[currentMonthKey.value] !== undefined) {
-                        return monthlyLimitsMap.value[currentMonthKey.value];
-                    }
-                    return defaultLimit.value;
-                });
-                const isCustomLimit = computed(() => monthlyLimitsMap.value && monthlyLimitsMap.value[currentMonthKey.value] !== undefined);
+                const currentMonthlyLimit = computed(() => monthlyLimitsMap.value[currentMonthKey.value] ?? defaultLimit.value);
+                const isCustomLimit = computed(() => monthlyLimitsMap.value[currentMonthKey.value] !== undefined);
 
-                // Filtragem
                 const filteredTransactions = computed(() => {
                     const targetMonth = currentDate.value.getMonth();
                     const targetYear = currentDate.value.getFullYear();
@@ -412,10 +427,7 @@
                 const totalCredit = computed(() => filteredTransactions.value.filter(t => t.type === 'credit').reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
                 const totalDebit = computed(() => filteredTransactions.value.filter(t => t.type === 'debit').reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
                 const remainingBudget = computed(() => currentMonthlyLimit.value - totalSpent.value);
-                const progressPercentage = computed(() => {
-                    if (currentMonthlyLimit.value <= 0) return 100;
-                    return Math.min((totalSpent.value / currentMonthlyLimit.value) * 100, 100);
-                });
+                const progressPercentage = computed(() => currentMonthlyLimit.value <= 0 ? 100 : Math.min((totalSpent.value / currentMonthlyLimit.value) * 100, 100));
                 const progressBarColor = computed(() => {
                     const pct = progressPercentage.value;
                     if (pct < 50) return 'bg-emerald-300';
@@ -423,7 +435,6 @@
                     return 'bg-red-500';
                 });
 
-                // Ações
                 const handleLogin = async () => {
                     isLoggingIn.value = true;
                     try { await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value); } 
@@ -432,37 +443,26 @@
                 };
                 const handleLogout = async () => { if(confirm('Deseja sair?')) { await signOut(auth); transactions.value = []; monthlyLimitsMap.value = {}; } };
                 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-                const formatDate = (timestamp) => {
-                    if (!timestamp) return 'Agora';
-                    return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(timestamp.toDate());
-                };
+                const formatDate = (timestamp) => timestamp ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(timestamp.toDate()) : 'Agora';
                 
-                // --- Ações de Modal (ADD/EDIT) ---
                 const openModal = () => {
-                    editingId.value = null; // Modo criação
+                    editingId.value = null;
                     newTransaction.value = { amount: 0, description: '', type: 'debit', customDate: getLocalISO() };
-                    calcDisplay.value = ''; // Reset calc
+                    calcDisplay.value = '';
                     showModal.value = true; 
                     nextTick(() => amountInput.value?.focus());
                 };
 
                 const editTransaction = (t) => {
-                    editingId.value = t.id; // Modo edição
+                    editingId.value = t.id;
                     const dateObj = t.date.toDate();
                     dateObj.setMinutes(dateObj.getMinutes() - dateObj.getTimezoneOffset());
-                    
-                    newTransaction.value = {
-                        amount: t.amount,
-                        description: t.description,
-                        type: t.type,
-                        customDate: dateObj.toISOString().slice(0, 16)
-                    };
-                    calcDisplay.value = ''; // Reset calc
+                    newTransaction.value = { amount: t.amount, description: t.description, type: t.type, customDate: dateObj.toISOString().slice(0, 16) };
+                    calcDisplay.value = '';
                     showModal.value = true;
                 };
 
                 const closeModal = () => { showModal.value = false; showCalculator.value = false; };
-                
                 const toggleSettings = () => { showSettings.value = !showSettings.value; if(showSettings.value) tempLimit.value = currentMonthlyLimit.value; };
                 
                 const saveLimit = async () => {
@@ -472,38 +472,35 @@
                         const updateData = { monthlyLimits: {} };
                         updateData.monthlyLimits[currentMonthKey.value] = parseFloat(tempLimit.value);
                         await setDoc(settingsRef, updateData, { merge: true });
-                        monthlyLimitsMap.value[currentMonthKey.value] = parseFloat(tempLimit.value);
                         showSettings.value = false;
-                    } catch (e) { console.error("Erro limite", e); alert("Erro ao salvar."); }
+                    } catch (e) { alert("Erro ao salvar."); }
                 };
 
                 const saveTransaction = async () => {
                     if (!user.value || !isValidTransaction.value) return;
                     try {
                         const selectedDate = new Date(newTransaction.value.customDate);
-                        const transactionData = {
-                            amount: parseFloat(newTransaction.value.amount),
-                            description: newTransaction.value.description,
-                            type: newTransaction.value.type,
-                            date: selectedDate
-                        };
-
-                        if (editingId.value) {
-                            await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), transactionData);
-                        } else {
-                            await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), transactionData);
-                        }
-                        
+                        const transactionData = { amount: parseFloat(newTransaction.value.amount), description: newTransaction.value.description, type: newTransaction.value.type, date: selectedDate };
+                        if (editingId.value) await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), transactionData);
+                        else await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), transactionData);
                         currentDate.value = new Date(selectedDate);
                         closeModal();
-                    } catch (e) { console.error(e); alert("Erro ao salvar."); }
+                    } catch (e) { alert("Erro ao salvar."); }
                 };
 
                 const deleteTransaction = async (id) => { if (confirm("Remover?")) await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id)); };
 
-                onMounted(async () => {
+                // LOGICA DE INICIALIZAÇÃO OTIMIZADA
+                onMounted(() => {
                     onAuthStateChanged(auth, (u) => {
                         user.value = u;
+                        
+                        // Esconde a Splash Screen assim que o Firebase Auth responder
+                        setTimeout(() => {
+                            appReady.value = true;
+                            document.getElementById('splash-screen')?.classList.add('hidden');
+                        }, 300); // Delay mínimo para uma transição suave
+
                         if (u) {
                             loading.value = true;
                             onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'settings', 'config'), (docSnap) => {
@@ -525,12 +522,11 @@
                 });
 
                 return {
-                    user, transactions, loading, loginEmail, loginPassword, loginError, isLoggingIn, handleLogin, handleLogout,
+                    appReady, user, transactions, loading, loginEmail, loginPassword, loginError, isLoggingIn, handleLogin, handleLogout,
                     showModal, showSettings, newTransaction, tempLimit, amountInput, isValidTransaction, totalSpent, totalCredit, totalDebit, 
                     remainingBudget, progressPercentage, progressBarColor, filteredTransactions, currentMonthDisplay, changeMonth, 
                     currentMonthlyLimit, isCustomLimit, formatCurrency, formatDate, openModal, closeModal, toggleSettings, 
                     saveLimit, saveTransaction, deleteTransaction, editTransaction, editingId,
-                    // Novos retornos para ATM input e Calculadora
                     formattedAmountDisplay, handleAmountInput, 
                     showCalculator, calcDisplay, calcHistory, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult
                 };
@@ -538,6 +534,4 @@
         }).mount('#app');
     </script>
 </body>
-</html>```
-
-
+</html>
