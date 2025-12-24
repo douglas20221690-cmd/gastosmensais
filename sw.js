@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financas-pwa-v1.5.0-offline';
+const CACHE_NAME = 'financas-pwa-v1.5.1-offline'; // Incrementado a versão para forçar atualização
 const ASSETS = [
   './index.html',
   './manifest.json',
@@ -27,7 +27,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Ignora chamadas do Firebase/API para não interferir na auth
+  // Ignora chamadas do Firebase/API para não interferir na auth em tempo real
   if (event.request.url.includes('firestore') || 
       event.request.url.includes('googleapis') || 
       event.request.url.includes('firebase')) {
@@ -36,9 +36,8 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request).then((networkResponse) => {
-         return networkResponse;
-      });
+      // Retorna o cache se houver, ou busca na rede
+      return cachedResponse || fetch(event.request);
     })
   );
 });
