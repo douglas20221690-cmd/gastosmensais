@@ -1,70 +1,51 @@
-const CACHE_NAME = 'financas-pwa-v1.5.2-instant'; // Versão atualizada para aplicar as melhorias
+const CACHE_NAME = 'financas-pwa-v1.6.0'; 
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './icon.png',
+  './icon.png?v=3',
   'https://cdn.tailwindcss.com',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-  'https://unpkg.com/vue@3/dist/vue.global.js'
+  'https://unpkg.com/vue@3/dist/vue.global.js',
+  'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
-// Instalação: Salva os arquivos essenciais imediatamente
+// Instalação: Cacheia tudo que é essencial
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('Pre-caching assets...');
-      return cache.addAll(ASSETS);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
   self.skipWaiting();
 });
 
-// Ativação: Remove caches antigos e assume o controle das abas abertas
+// Ativação: Limpa caches antigos
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
       keys.map((key) => {
-        if (key !== CACHE_NAME) {
-          console.log('Removendo cache antigo:', key);
-          return caches.delete(key);
-        }
+        if (key !== CACHE_NAME) return caches.delete(key);
       })
     ))
   );
   self.clients.claim();
 });
 
-// Estratégia de Busca: Stale-While-Revalidate
-// Entrega do cache instantaneamente e atualiza em background
+// Estratégia: Stale-While-Revalidate (Entrega rápido, atualiza depois)
 self.addEventListener('fetch', (event) => {
-  // Ignora chamadas do Firebase/APIs (precisam de dados em tempo real)
-  if (
-    event.request.url.includes('firestore') || 
-    event.request.url.includes('googleapis') || 
-    event.request.url.includes('firebase') ||
-    event.request.method !== 'GET'
-  ) {
-    return;
-  }
+  // Ignora chamadas do Firebase Firestore (elas têm persistência própria do SDK)
+  if (event.request.url.includes('firestore.googleapis.com')) return;
 
   event.respondWith(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.match(event.request).then((cachedResponse) => {
-        // Inicia a busca na rede para atualizar o cache
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          // Se a resposta for válida, guarda no cache para a próxima vez
-          if (networkResponse && networkResponse.status === 200) {
-            cache.put(event.request, networkResponse.clone());
-          }
-          return networkResponse;
-        }).catch(() => {
-          // Se falhar a rede (offline), o cachedResponse já será retornado abaixo
-        });
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const cacheCopy = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
+        }
+        return networkResponse;
+      }).catch(() => {});
 
-        // Retorna a resposta do cache imediatamente (se existir) ou espera a rede
-        return cachedResponse || fetchPromise;
-      });
+      return cachedResponse || fetchPromise;
     })
   );
 });
