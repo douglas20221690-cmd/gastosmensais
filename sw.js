@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financas-pwa-v2.0.0';
+const CACHE_NAME = 'financas-pwa-v2.1.0';
 const ASSETS = [
   './',
   './index.html',
@@ -13,17 +13,15 @@ const ASSETS = [
   'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js'
 ];
 
-// Instalação: Cacheia tudo agressivamente
+// Instalação: Salva arquivos essenciais no cache do celular
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
   self.skipWaiting();
 });
 
-// Ativação: Limpa caches antigos
+// Ativação: Limpa versões velhas
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
@@ -35,13 +33,11 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Estratégia Stale-While-Revalidate
+// Estratégia Stale-While-Revalidate: 
+// Abre o que está no cache imediatamente e atualiza em segundo plano.
 self.addEventListener('fetch', (event) => {
-  // Ignora chamadas de API do Firebase (o SDK cuida da persistência dos dados)
-  if (event.request.url.includes('firestore.googleapis.com') || 
-      event.request.url.includes('identitytoolkit.googleapis.com')) {
-    return;
-  }
+  // O Firestore tem sua própria persistência, deixamos o SDK gerenciar
+  if (event.request.url.includes('firestore.googleapis.com')) return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
@@ -51,11 +47,8 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
         }
         return networkResponse;
-      }).catch(() => {
-        // Se falhar a rede, já retornamos o cache abaixo
-      });
+      }).catch(() => {});
 
-      // Retorna o cache IMEDIATAMENTE se existir, senão espera a rede
       return cachedResponse || fetchPromise;
     })
   );
