@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financas-pwa-v1.6.0'; 
+const CACHE_NAME = 'financas-pwa-v2.0.0';
 const ASSETS = [
   './',
   './index.html',
@@ -7,13 +7,18 @@ const ASSETS = [
   'https://cdn.tailwindcss.com',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
   'https://unpkg.com/vue@3/dist/vue.global.js',
-  'https://cdn.jsdelivr.net/npm/chart.js'
+  'https://cdn.jsdelivr.net/npm/chart.js',
+  'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js',
+  'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js',
+  'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js'
 ];
 
-// Instalação: Cacheia tudo que é essencial
+// Instalação: Cacheia tudo agressivamente
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS);
+    })
   );
   self.skipWaiting();
 });
@@ -30,10 +35,13 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Estratégia: Stale-While-Revalidate (Entrega rápido, atualiza depois)
+// Estratégia Stale-While-Revalidate
 self.addEventListener('fetch', (event) => {
-  // Ignora chamadas do Firebase Firestore (elas têm persistência própria do SDK)
-  if (event.request.url.includes('firestore.googleapis.com')) return;
+  // Ignora chamadas de API do Firebase (o SDK cuida da persistência dos dados)
+  if (event.request.url.includes('firestore.googleapis.com') || 
+      event.request.url.includes('identitytoolkit.googleapis.com')) {
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
@@ -43,8 +51,11 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
         }
         return networkResponse;
-      }).catch(() => {});
+      }).catch(() => {
+        // Se falhar a rede, já retornamos o cache abaixo
+      });
 
+      // Retorna o cache IMEDIATAMENTE se existir, senão espera a rede
       return cachedResponse || fetchPromise;
     })
   );
