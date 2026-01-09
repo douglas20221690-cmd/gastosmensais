@@ -77,7 +77,7 @@
         <div class="bg-white/20 p-6 rounded-full mb-6">
             <img src="icon.png?v=3" alt="Logo" class="w-16 h-16 object-contain">
         </div>
-        <p class="text-white font-medium opacity-80 text-sm">Iniciando...</p>
+        <p class="text-white font-medium opacity-80 text-sm">Organizando tudo...</p>
     </div>
 
     <div id="app" class="flex flex-col h-full relative" v-cloak>
@@ -103,7 +103,7 @@
                 <div class="flex justify-between items-center mb-4">
                     <h1 class="text-lg font-bold flex items-center">
                         <img src="icon.png?v=3" class="w-7 h-7 mr-2 bg-white/20 rounded-full p-1">
-                        {{ activeTab === 'list' ? 'Movimentações' : (viewingCategory ? viewingCategory : 'Análise por Categoria') }}
+                        Movimentações
                     </h1>
                     <div class="flex gap-4">
                         <button @click="toggleSettings" class="opacity-80"><i class="fas fa-cog"></i></button>
@@ -117,7 +117,6 @@
                     <button @click="changeMonth(1)" class="w-9 h-9 flex items-center justify-center"><i class="fas fa-chevron-right text-xs"></i></button>
                 </div>
 
-                <!-- LAYOUT DO HEADER RESTAURADO -->
                 <div class="animate-fade-in space-y-1">
                     <div class="flex justify-between items-end">
                         <div>
@@ -146,7 +145,7 @@
             </header>
 
             <!-- LISTA -->
-            <main v-if="activeTab === 'list'" class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar pb-32">
+            <main class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar pb-32">
                 <div class="grid grid-cols-2 gap-3">
                     <div class="bg-orange-50 p-3 rounded-2xl border border-orange-100 flex flex-col items-center">
                         <span class="text-[10px] text-orange-400 font-bold uppercase">Total Débito</span>
@@ -172,7 +171,7 @@
                         <div class="leading-tight">
                             <p class="font-bold text-gray-800 text-sm truncate max-w-[150px]">{{ t.description || 'Sem descrição' }}</p>
                             <p class="text-[11px] text-gray-400 font-medium">
-                                <span class="text-emerald-600 font-bold">{{ t.category || 'Outros' }}</span> • {{ formatDateShort(t.date) }}
+                                {{ formatDateShort(t.date) }}
                             </p>
                         </div>
                     </div>
@@ -183,79 +182,11 @@
                 </div>
             </main>
 
-            <!-- ANÁLISE -->
-            <main v-if="activeTab === 'categories'" class="flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar pb-32 animate-fade-in">
-                
-                <div v-if="viewingCategory" class="space-y-4 animate-fade-in">
-                    <div class="flex items-center gap-2 mb-2">
-                        <button @click="viewingCategory = null" class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 text-emerald-600">
-                            <i class="fas fa-arrow-left"></i>
-                        </button>
-                        <span class="font-bold text-gray-500 text-sm uppercase tracking-widest">Gastos em {{ viewingCategory }}</span>
-                    </div>
-
-                    <div v-for="t in categoryTransactions" :key="t.id" class="expense-item bg-white shadow-sm border border-gray-100 flex justify-between items-center animate-fade-in">
-                        <div class="flex items-center gap-3">
-                            <div class="expense-icon rounded-full flex items-center justify-center text-white shadow-sm" :class="t.type === 'credit' ? 'bg-indigo-500' : 'bg-orange-500'">
-                                <i class="fas" :class="t.type === 'credit' ? 'fa-credit-card' : 'fa-money-bill-wave'"></i>
-                            </div>
-                            <div class="leading-tight">
-                                <p class="font-bold text-gray-800 text-sm truncate max-w-[150px]">{{ t.description || 'Sem descrição' }}</p>
-                                <p class="text-[11px] text-gray-400 font-medium">{{ formatDateShort(t.date) }}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-gray-900 text-base">{{ formatCurrency(t.amount) }}</span>
-                            <button @click="editTransaction(t)" class="text-gray-200 hover:text-emerald-500 p-2 transition-colors"><i class="fas fa-pen text-xs"></i></button>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-else class="space-y-6 animate-fade-in">
-                    <div class="flex bg-gray-200 rounded-xl p-1 text-xs font-bold">
-                        <button @click="chartFilter = 'all'" class="flex-1 py-2 rounded-lg" :class="chartFilter === 'all' ? 'bg-white shadow text-emerald-600' : 'text-gray-500'">Todos</button>
-                        <button @click="chartFilter = 'debit'" class="flex-1 py-2 rounded-lg" :class="chartFilter === 'debit' ? 'bg-white shadow text-orange-600' : 'text-gray-500'">Débito</button>
-                        <button @click="chartFilter = 'credit'" class="flex-1 py-2 rounded-lg" :class="chartFilter === 'credit' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'">Crédito</button>
-                    </div>
-
-                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 relative min-h-[250px] flex items-center justify-center">
-                        <canvas id="categoryChart"></canvas>
-                    </div>
-
-                    <button @click="categorizeWithAI" :disabled="isCategorizing" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-lg disabled:opacity-50">
-                        <i class="fas" :class="isCategorizing ? 'fa-circle-notch fa-spin' : 'fa-wand-magic-sparkles'"></i>
-                        {{ isCategorizing ? 'Categorizando...' : 'Categorizar com Inteligência Artificial' }}
-                    </button>
-
-                    <div class="space-y-2">
-                        <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Divisão de Custos</h3>
-                        <div v-for="cat in categoryData" :key="cat.name" @click="viewingCategory = cat.name" class="bg-white p-4 rounded-2xl border border-gray-100 flex justify-between items-center shadow-sm active:scale-95 transition-transform cursor-pointer">
-                            <div class="flex flex-col">
-                                <span class="font-bold text-gray-800 text-sm">{{ cat.name }}</span>
-                                <span class="text-[10px] text-gray-400 uppercase font-black">{{ cat.count }} Transações</span>
-                            </div>
-                            <div class="text-right flex items-center gap-3">
-                                <div class="flex flex-col">
-                                    <div class="font-bold text-emerald-600 text-sm">{{ formatCurrency(cat.value) }}</div>
-                                    <div class="text-[10px] text-gray-400 font-bold">{{ cat.percentage }}%</div>
-                                </div>
-                                <i class="fas fa-chevron-right text-gray-200 text-xs"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
-
             <!-- NAVBAR -->
             <nav class="bottom-nav">
-                <button @click="activeTab = 'list'" class="nav-item" :class="{active: activeTab === 'list'}">
+                <button class="nav-item active">
                     <i class="fas fa-wallet text-xl mb-1"></i>
                     <span>LISTA</span>
-                </button>
-                <div class="w-20"></div>
-                <button @click="activeTab = 'categories'" class="nav-item" :class="{active: activeTab === 'categories'}">
-                    <i class="fas fa-chart-pie text-xl mb-1"></i>
-                    <span>CATEGORIAS</span>
                 </button>
             </nav>
 
@@ -272,18 +203,23 @@
                             <div class="flex justify-between items-center ml-1"><label class="text-[10px] font-bold text-gray-400 uppercase">Valor</label><button @click="showCalculator = true" class="text-emerald-600 font-bold text-[10px] uppercase flex items-center gap-1"><i class="fas fa-calculator"></i> Calculadora</button></div>
                             <input type="tel" inputmode="numeric" :value="formattedAmountDisplay" @input="handleAmountInput" class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-2xl outline-none" placeholder="0,00">
                         </div>
-                        <div><label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Descrição</label><input type="text" v-model="newTransaction.description" class="w-full p-4 bg-gray-50 rounded-2xl outline-none text-base font-semibold" placeholder="Ex: Supermercado..."></div>
+                        <div><label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Descrição</label><input type="text" v-model="newTransaction.description" class="w-full p-4 bg-gray-50 rounded-2xl outline-none text-base font-semibold" placeholder="Ex: Supermercado, Uber, Gaminha..."></div>
+                        
                         <div class="grid grid-cols-2 gap-3 mt-2"><button @click="newTransaction.type = 'debit'" class="p-4 rounded-2xl border-2 font-bold transition-all" :class="newTransaction.type === 'debit' ? 'border-orange-500 text-orange-600 bg-orange-50 shadow-inner' : 'border-gray-100 text-gray-300'">DÉBITO</button><button @click="newTransaction.type = 'credit'" class="p-4 rounded-2xl border-2 font-bold transition-all" :class="newTransaction.type === 'credit' ? 'border-indigo-500 text-indigo-600 bg-indigo-50 shadow-inner' : 'border-gray-100 text-gray-300'">CRÉDITO</button></div>
-                        <button @click="saveTransaction" class="w-full bg-emerald-600 text-white py-5 rounded-2xl font-bold text-lg shadow-lg mt-4">Salvar Gasto</button>
+                        <button @click="saveTransaction" class="w-full bg-emerald-600 text-white py-5 rounded-2xl font-bold text-lg shadow-lg mt-4 active:scale-95">Salvar Gasto</button>
                         <button v-if="editingId" @click="deleteTransaction(editingId)" class="w-full text-red-500 text-xs font-black py-2 uppercase tracking-widest">Excluir Permanente</button>
                     </div>
                 </div>
             </div>
 
-            <!-- CALCULADORA -->
+            <!-- MODAL CALCULADORA -->
             <div v-if="showCalculator" class="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center backdrop-blur-md" @click.self="showCalculator = false">
                 <div class="bg-white w-full max-w-sm p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
-                    <div class="bg-gray-100 p-6 rounded-2xl mb-6 text-right"><div class="text-gray-400 text-xs font-bold h-4">{{ calcHistory }}</div><div class="text-3xl font-black text-emerald-600 truncate">{{ calcDisplay }}</div></div>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-black text-gray-800">Calculadora</h2>
+                        <button @click="showCalculator = false" class="text-gray-400 p-2"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="bg-gray-100 p-6 rounded-2xl mb-6 text-right overflow-hidden"><div class="text-gray-400 text-xs font-bold h-4">{{ calcHistory }}</div><div class="text-3xl font-black text-emerald-600 truncate">{{ calcDisplay }}</div></div>
                     <div class="grid grid-cols-4 gap-2">
                         <button @click="calcClear" class="calc-btn text-red-500">C</button><button @click="calcBackspace" class="calc-btn text-gray-400"><i class="fas fa-backspace"></i></button><button @click="calcAppend('/')" class="calc-btn calc-btn-op">÷</button><button @click="calcAppend('*')" class="calc-btn calc-btn-op">×</button>
                         <button @click="calcAppend('7')" class="calc-btn">7</button><button @click="calcAppend('8')" class="calc-btn">8</button><button @click="calcAppend('9')" class="calc-btn">9</button><button @click="calcAppend('-')" class="calc-btn calc-btn-op">-</button>
@@ -298,7 +234,7 @@
             <div v-if="showSettings" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-6 backdrop-blur-md" @click.self="showSettings = false">
                 <div class="bg-white w-full max-w-xs p-8 rounded-3xl shadow-2xl">
                     <h3 class="font-bold text-lg mb-2">Limite do Mês</h3>
-                    <input type="number" v-model="tempLimit" class="w-full p-4 bg-gray-100 rounded-2xl mb-6 font-bold text-xl outline-none">
+                    <input type="number" v-model="tempLimit" class="w-full p-4 bg-gray-100 rounded-2xl mb-6 font-bold text-xl outline-none focus:ring-2 focus:ring-emerald-500">
                     <button @click="saveLimit" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg">Definir Meta</button>
                 </div>
             </div>
@@ -306,21 +242,18 @@
     </div>
 
     <script type="module">
-        const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+        const { createApp, ref, computed, onMounted } = Vue;
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc, getDoc, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = { apiKey: "AIzaSyBynG1L1voQ-GJnjwv7KeKV6p64eDxD8KY", authDomain: "gastosmensais-3d721.firebaseapp.com", projectId: "gastosmensais-3d721", storageBucket: "gastosmensais-3d721.firebasestorage.app", messagingSenderId: "564092336226", appId: "1:564092336226:web:8d68fb169fc09dce84793b" };
         const fbApp = initializeApp(firebaseConfig);
         const auth = getAuth(fbApp);
         const db = getFirestore(fbApp);
-        const appId = 'gastosmensais-3d721';
+        const appId = 'gastosmensais-3d721'; 
 
-        // Persistência Offline para carregamento instantâneo de dados
         enableIndexedDbPersistence(db).catch(() => {});
-
-        const possibleCategories = ["Alimentação", "Supermercado", "Transporte", "Saúde", "Educação", "Lazer", "Assinaturas", "Moradia", "Compras", "Serviços", "Pets", "Imprevistos", "Outros"];
 
         createApp({
             setup() {
@@ -328,15 +261,9 @@
                 const user = ref(null);
                 const transactions = ref([]);
                 const monthlyLimitsMap = ref({}); 
-                const learnedPatterns = ref({}); 
                 const defaultLimit = ref(2000);
                 const loading = ref(false);
                 const currentDate = ref(new Date());
-                const activeTab = ref('list');
-                const chartFilter = ref('all');
-                const isCategorizing = ref(false);
-                const viewingCategory = ref(null);
-                let myChart = null;
 
                 const loginEmail = ref('douglasrgomes@gmail.com');
                 const loginPassword = ref('');
@@ -345,24 +272,16 @@
                 const showSettings = ref(false);
                 const tempLimit = ref(2000);
                 const editingId = ref(null);
-                const newTransaction = ref({ amount: 0, description: '', type: 'debit', category: '', date: new Date() });
+                const newTransaction = ref({ amount: 0, description: '', type: 'debit', date: new Date() });
                 const showCalculator = ref(false);
                 const calcDisplay = ref('0');
                 const calcHistory = ref('');
-
-                // Lógica de Meta Restaurada
-                const expectedProgress = computed(() => { 
-                    const now = new Date(); 
-                    const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); 
-                    const currentDay = now.getDate(); 
-                    return (currentDay / totalDays) * 100; 
-                });
-                const progressBarColor = computed(() => progressPercentage.value > 95 ? 'bg-red-600' : progressPercentage.value > expectedProgress.value ? 'bg-orange-500' : 'bg-emerald-300');
 
                 const formattedAmountDisplay = computed(() => newTransaction.value.amount === 0 ? '' : newTransaction.value.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
                 const currentMonthDisplay = computed(() => new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentDate.value));
                 const currentMonthKey = computed(() => { const m = currentDate.value.getMonth() + 1; const y = currentDate.value.getFullYear(); return `${y}-${m.toString().padStart(2, '0')}`; });
                 const currentMonthlyLimit = computed(() => monthlyLimitsMap.value[currentMonthKey.value] ?? defaultLimit.value);
+                const expectedProgress = computed(() => { const now = new Date(); const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); const currentDay = now.getDate(); return (currentDay / totalDays) * 100; });
                 
                 const filteredTransactions = computed(() => {
                     const targetMonth = currentDate.value.getMonth();
@@ -373,33 +292,12 @@
                     }).sort((a, b) => b.date.toDate() - a.date.toDate());
                 });
 
-                const categoryTransactions = computed(() => !viewingCategory.value ? [] : filteredTransactions.value.filter(t => (t.category || 'Outros') === viewingCategory.value));
                 const totalSpent = computed(() => filteredTransactions.value.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
                 const totalDebit = computed(() => filteredTransactions.value.filter(t => t.type === 'debit').reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
                 const totalCredit = computed(() => filteredTransactions.value.filter(t => t.type === 'credit').reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
                 const remainingBudget = computed(() => currentMonthlyLimit.value - totalSpent.value);
                 const progressPercentage = computed(() => Math.min((totalSpent.value / (currentMonthlyLimit.value || 1)) * 100, 100));
-
-                const categoryData = computed(() => {
-                    let items = filteredTransactions.value;
-                    if (chartFilter.value === 'debit') items = items.filter(t => t.type === 'debit');
-                    if (chartFilter.value === 'credit') items = items.filter(t => t.type === 'credit');
-                    const groups = items.reduce((acc, t) => { const cat = t.category || 'Outros'; if (!acc[cat]) acc[cat] = { value: 0, count: 0 }; acc[cat].value += t.amount; acc[cat].count++; return acc; }, {});
-                    const totalValue = items.reduce((a, b) => a + b.amount, 0);
-                    return Object.keys(groups).map(name => ({ name, value: groups[name].value, count: groups[name].count, percentage: totalValue > 0 ? ((groups[name].value / totalValue) * 100).toFixed(0) : 0 })).sort((a, b) => b.value - a.value);
-                });
-
-                // Funções Auxiliares
-                const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-                const formatDateShort = (ts) => ts ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(ts.toDate()) : '--';
-                const changeMonth = (d) => { const newD = new Date(currentDate.value); newD.setMonth(newD.getMonth() + d); currentDate.value = newD; };
-                const openModal = () => { editingId.value = null; newTransaction.value = { amount: 0, description: '', type: 'debit', category: '', date: new Date() }; showModal.value = true; };
-                const closeModal = () => showModal.value = false;
-                const editTransaction = (t) => { editingId.value = t.id; newTransaction.value = { ...t }; showModal.value = true; };
-                const handleAmountInput = (e) => { let val = e.target.value.replace(/\D/g, ''); newTransaction.value.amount = val ? parseFloat(val) / 100 : 0; };
-                const toggleSettings = () => { tempLimit.value = currentMonthlyLimit.value; showSettings.value = !showSettings.value; };
-                const handleLogout = () => confirm('Sair?') && signOut(auth);
-                const handleLogin = async () => { isLoggingIn.value = true; try { await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value); } catch (e) { alert("Erro"); } finally { isLoggingIn.value = false; } };
+                const progressBarColor = computed(() => progressPercentage.value > 95 ? 'bg-red-600' : progressPercentage.value > expectedProgress.value ? 'bg-orange-500' : 'bg-emerald-300');
 
                 const calcAppend = (btn) => { if (calcDisplay.value === '0' && !isNaN(btn)) calcDisplay.value = btn; else calcDisplay.value += btn; };
                 const calcClear = () => { calcDisplay.value = '0'; calcHistory.value = ''; };
@@ -410,17 +308,26 @@
                 const saveTransaction = async () => {
                     if (!newTransaction.value.description || newTransaction.value.amount <= 0 || !user.value) return;
                     const data = { ...newTransaction.value }; delete data.id;
-                    try { if (editingId.value) await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), data); else await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), data); closeModal(); } catch (e) {}
+                    try { if (editingId.value) await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), data); else await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), data); closeModal(); } catch (e) { console.error(e); }
                 };
 
-                const deleteTransaction = async (id) => { if (confirm("Excluir?") && user.value) { await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id)); closeModal(); } };
+                const handleLogin = async () => { isLoggingIn.value = true; try { await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value); } catch (e) { console.error(e); } finally { isLoggingIn.value = false; } };
+                const handleLogout = () => confirm('Sair?') && signOut(auth);
+                const handleAmountInput = (e) => { let val = e.target.value.replace(/\D/g, ''); newTransaction.value.amount = val ? parseFloat(val) / 100 : 0; };
+                const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+                const formatDateShort = (ts) => ts ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(ts.toDate()) : '--';
+                const changeMonth = (d) => { const newD = new Date(currentDate.value); newD.setMonth(newD.getMonth() + d); currentDate.value = newD; };
+                const openModal = () => { editingId.value = null; newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() }; showModal.value = true; };
+                const editTransaction = (t) => { editingId.value = t.id; newTransaction.value = { ...t }; showModal.value = true; };
+                const closeModal = () => showModal.value = false;
+                const toggleSettings = () => { tempLimit.value = currentMonthlyLimit.value; showSettings.value = !showSettings.value; };
                 const saveLimit = async () => { if (!user.value) return; await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'settings', 'config'), { monthlyLimits: { ...monthlyLimitsMap.value, [currentMonthKey.value]: parseFloat(tempLimit.value) } }, { merge: true }); showSettings.value = false; };
+                const deleteTransaction = async (id) => { if (confirm("Excluir?") && user.value) { await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id)); closeModal(); } };
 
                 onMounted(() => {
                     onAuthStateChanged(auth, async (u) => {
                         user.value = u; appReady.value = true;
-                        // Fecha splash-screen assim que detectamos o estado de login
-                        setTimeout(() => document.getElementById('splash-screen')?.classList.add('hidden'), 200);
+                        setTimeout(() => document.getElementById('splash-screen')?.classList.add('hidden'), 300);
                         if (u) {
                             onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'settings', 'config'), (s) => { if (s.exists()) { defaultLimit.value = s.data().monthlyLimit || 2000; monthlyLimitsMap.value = s.data().monthlyLimits || {}; } });
                             onSnapshot(collection(db, 'artifacts', appId, 'users', u.uid, 'expenses'), (s) => { transactions.value = s.docs.map(d => ({ id: d.id, ...d.data() })); });
@@ -429,7 +336,7 @@
                     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
                 });
 
-                return { appReady, user, transactions, loading, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, filteredTransactions, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, toggleSettings, saveLimit, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, activeTab, categoryData, chartFilter, categorizeWithAI: () => {}, isCategorizing: false, totalSpent, totalDebit, totalCredit, possibleCategories, expectedProgress, showCalculator, calcDisplay, calcHistory, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult, viewingCategory, categoryTransactions, deleteTransaction };
+                return { appReady, user, transactions, loading, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, filteredTransactions, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, toggleSettings, saveLimit, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, expectedProgress, showCalculator, calcDisplay, calcHistory, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult, deleteTransaction };
             }
         }).mount('#app');
     </script>
