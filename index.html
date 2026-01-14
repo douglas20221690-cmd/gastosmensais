@@ -82,7 +82,7 @@
 
     <div id="app" class="flex flex-col h-full relative" v-cloak>
 
-        <!-- LOGIN (Só aparece se appReady for true e não houver usuário) -->
+        <!-- LOGIN -->
         <div v-if="appReady && !user" class="absolute inset-0 z-50 bg-emerald-600 flex flex-col items-center justify-center p-6 animate-fade-in">
             <div class="bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl">
                 <div class="text-center mb-8">
@@ -100,8 +100,8 @@
             </div>
         </div>
         
-        <!-- APP (Aparece se houver usuário OU se estivermos em 'Loading Otimista') -->
-        <template v-else-if="user || (!appReady && hasLocalSession)">
+        <!-- APP SHELL OTIMISTA -->
+        <template v-else-if="user || hasLocalSession">
             <header class="bg-emerald-600 text-white p-5 shadow-lg rounded-b-3xl z-10 shrink-0">
                 <div class="flex justify-between items-center mb-4">
                     <h1 class="text-lg font-bold flex items-center">
@@ -147,7 +147,6 @@
                 </div>
             </header>
 
-            <!-- LISTA -->
             <main class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar pb-32">
                 <div class="grid grid-cols-2 gap-3">
                     <div class="bg-orange-50 p-3 rounded-2xl border border-orange-100 flex flex-col items-center">
@@ -185,7 +184,6 @@
                 </div>
             </main>
 
-            <!-- NAVBAR -->
             <nav class="bottom-nav">
                 <button class="nav-item active">
                     <i class="fas fa-wallet text-xl mb-1"></i>
@@ -256,10 +254,9 @@
         const db = getFirestore(fbApp);
         const appId = 'gastosmensais-3d721'; 
 
-        // Ativa persistência IMEDIATAMENTE antes do Vue subir
+        // Ativa persistência IMEDIATAMENTE
         enableIndexedDbPersistence(db).catch((err) => {
-            if (err.code === 'failed-precondition') console.warn('Múltiplas abas abertas, persistência em apenas uma.');
-            else if (err.code === 'unimplemented') console.warn('Navegador não suporta persistência.');
+            console.warn('Firestore Persistence:', err.code);
         });
 
         createApp({
@@ -272,6 +269,7 @@
                 const defaultLimit = ref(2000);
                 const loading = ref(true);
                 const currentDate = ref(new Date());
+                let listenersActive = false;
 
                 const loginEmail = ref('douglasrgomes@gmail.com');
                 const loginPassword = ref('');
@@ -324,7 +322,7 @@
                 };
 
                 const handleLogin = async () => { isLoggingIn.value = true; try { await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value); } catch (e) { console.error(e); } finally { isLoggingIn.value = false; } };
-                const handleLogout = () => { if (confirm('Sair?')) { localStorage.removeItem('financas_uid'); signOut(auth); } };
+                const handleLogout = () => { if (confirm('Sair?')) { localStorage.removeItem('financas_uid'); signOut(auth); window.location.reload(); } };
                 const handleAmountInput = (e) => { let val = e.target.value.replace(/\D/g, ''); newTransaction.value.amount = val ? parseFloat(val) / 100 : 0; };
                 const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
                 const formatDateShort = (ts) => {
@@ -340,43 +338,56 @@
                 const deleteTransaction = async (id) => { if (confirm("Excluir?") && user.value) { await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id)); closeModal(); } };
 
                 const startListeners = (uid) => {
-                    loading.value = true;
-                    // Busca configurações (Cache primeiro)
+                    if (listenersActive) return;
+                    listenersActive = true;
+                    
+                    // Listener de Configurações
                     onSnapshot(doc(db, 'artifacts', appId, 'users', uid, 'settings', 'config'), (s) => {
                         if (s.exists()) {
                             defaultLimit.value = s.data().monthlyLimit || 2000;
                             monthlyLimitsMap.value = s.data().monthlyLimits || {};
                         }
+                    }, (err) => {
+                        console.error("Config listener error:", err);
+                        document.getElementById('splash-screen')?.classList.add('hidden');
                     });
-                    // Busca despesas (Cache primeiro)
+
+                    // Listener de Despesas
                     onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'expenses'), (s) => {
                         transactions.value = s.docs.map(d => ({ id: d.id, ...d.data() }));
                         loading.value = false;
-                        // Esconde o splash assim que os primeiros dados (cache ou rede) chegarem
+                        // Oculta o Splash assim que os primeiros dados chegarem (do cache ou rede)
+                        document.getElementById('splash-screen')?.classList.add('hidden');
+                    }, (err) => {
+                        console.error("Expenses listener error:", err);
+                        loading.value = false;
                         document.getElementById('splash-screen')?.classList.add('hidden');
                     });
                 };
 
                 onMounted(() => {
-                    // Tenta ouvir a mudança de auth
+                    // 1. Verificação Otimista: se temos um UID salvo, iniciamos a leitura do cache IMEDIATAMENTE
+                    const savedUid = localStorage.getItem('financas_uid');
+                    if (savedUid) {
+                        startListeners(savedUid);
+                    }
+
+                    // 2. Monitoramento de Autenticação (Real)
                     onAuthStateChanged(auth, (u) => {
                         user.value = u;
                         appReady.value = true;
                         
                         if (u) {
                             localStorage.setItem('financas_uid', u.uid);
+                            hasLocalSession.value = true;
                             startListeners(u.uid);
                         } else {
+                            // Se o servidor disse que não estamos logados, limpamos o cache otimista
                             localStorage.removeItem('financas_uid');
+                            hasLocalSession.value = false;
                             document.getElementById('splash-screen')?.classList.add('hidden');
                         }
                     });
-
-                    // Se já tínhamos um UID no localStorage, começamos a carregar os dados IMEDIATAMENTE (Otimista)
-                    const savedUid = localStorage.getItem('financas_uid');
-                    if (savedUid) {
-                        startListeners(savedUid);
-                    }
 
                     if ('serviceWorker' in navigator) {
                         navigator.serviceWorker.register('./sw.js').catch(() => {});
