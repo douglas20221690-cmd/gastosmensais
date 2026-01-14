@@ -34,7 +34,7 @@
         #splash-screen {
             position: fixed; inset: 0; background: #10b981;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 9999; transition: opacity 0.5s ease, visibility 0.5s;
+            z-index: 9999; transition: opacity 0.4s ease, visibility 0.4s;
         }
         #splash-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
         
@@ -77,13 +77,13 @@
         <div class="bg-white/20 p-6 rounded-full mb-6">
             <img src="icon.png?v=3" alt="Logo" class="w-16 h-16 object-contain">
         </div>
-        <p class="text-white font-medium opacity-80 text-sm">Organizando tudo...</p>
+        <p class="text-white font-medium opacity-80 text-sm">Carregando dados...</p>
     </div>
 
     <div id="app" class="flex flex-col h-full relative" v-cloak>
 
-        <!-- LOGIN -->
-        <div v-if="!user && appReady" class="absolute inset-0 z-50 bg-emerald-600 flex flex-col items-center justify-center p-6 animate-fade-in">
+        <!-- LOGIN (Só aparece se appReady for true e não houver usuário) -->
+        <div v-if="appReady && !user" class="absolute inset-0 z-50 bg-emerald-600 flex flex-col items-center justify-center p-6 animate-fade-in">
             <div class="bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl">
                 <div class="text-center mb-8">
                     <img src="icon.png?v=3" alt="Logo" class="w-16 h-16 mx-auto mb-4 bg-emerald-100 rounded-full p-2">
@@ -92,13 +92,16 @@
                 <form @submit.prevent="handleLogin" class="space-y-4">
                     <input type="email" v-model="loginEmail" class="w-full px-4 py-3 bg-gray-50 rounded-lg border outline-none focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="E-mail" required>
                     <input type="password" v-model="loginPassword" class="w-full px-4 py-3 bg-gray-50 rounded-lg border outline-none focus:ring-2 focus:ring-emerald-500 text-sm" placeholder="Senha" required>
-                    <button type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold shadow-lg" :disabled="isLoggingIn">Entrar</button>
+                    <button type="submit" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold shadow-lg" :disabled="isLoggingIn">
+                        <span v-if="isLoggingIn"><i class="fas fa-circle-notch fa-spin"></i> Entrando...</span>
+                        <span v-else>Entrar</span>
+                    </button>
                 </form>
             </div>
         </div>
         
-        <!-- APP -->
-        <template v-else-if="user && appReady">
+        <!-- APP (Aparece se houver usuário OU se estivermos em 'Loading Otimista') -->
+        <template v-else-if="user || (!appReady && hasLocalSession)">
             <header class="bg-emerald-600 text-white p-5 shadow-lg rounded-b-3xl z-10 shrink-0">
                 <div class="flex justify-between items-center mb-4">
                     <h1 class="text-lg font-bold flex items-center">
@@ -157,7 +160,7 @@
                     </div>
                 </div>
 
-                <div v-if="loading" class="text-center text-gray-300 mt-10"><i class="fas fa-circle-notch fa-spin"></i></div>
+                <div v-if="loading && filteredTransactions.length === 0" class="text-center text-gray-300 mt-10"><i class="fas fa-circle-notch fa-spin"></i></div>
                 <div v-else-if="filteredTransactions.length === 0" class="text-center text-gray-400 mt-10 p-10 bg-white rounded-3xl border border-dashed border-gray-200">
                     <i class="fas fa-calendar-day text-3xl mb-2 opacity-20"></i>
                     <p class="text-sm">Nenhum gasto registrado.</p>
@@ -253,16 +256,21 @@
         const db = getFirestore(fbApp);
         const appId = 'gastosmensais-3d721'; 
 
-        enableIndexedDbPersistence(db).catch(() => {});
+        // Ativa persistência IMEDIATAMENTE antes do Vue subir
+        enableIndexedDbPersistence(db).catch((err) => {
+            if (err.code === 'failed-precondition') console.warn('Múltiplas abas abertas, persistência em apenas uma.');
+            else if (err.code === 'unimplemented') console.warn('Navegador não suporta persistência.');
+        });
 
         createApp({
             setup() {
                 const appReady = ref(false);
                 const user = ref(null);
+                const hasLocalSession = ref(localStorage.getItem('financas_uid') !== null);
                 const transactions = ref([]);
                 const monthlyLimitsMap = ref({}); 
                 const defaultLimit = ref(2000);
-                const loading = ref(false);
+                const loading = ref(true);
                 const currentDate = ref(new Date());
 
                 const loginEmail = ref('douglasrgomes@gmail.com');
@@ -287,9 +295,13 @@
                     const targetMonth = currentDate.value.getMonth();
                     const targetYear = currentDate.value.getFullYear();
                     return transactions.value.filter(t => {
-                        const d = t.date.toDate();
+                        const d = t.date?.toDate ? t.date.toDate() : new Date(t.date);
                         return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
-                    }).sort((a, b) => b.date.toDate() - a.date.toDate());
+                    }).sort((a, b) => {
+                        const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date);
+                        const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date);
+                        return dateB - dateA;
+                    });
                 });
 
                 const totalSpent = computed(() => filteredTransactions.value.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
@@ -312,10 +324,13 @@
                 };
 
                 const handleLogin = async () => { isLoggingIn.value = true; try { await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value); } catch (e) { console.error(e); } finally { isLoggingIn.value = false; } };
-                const handleLogout = () => confirm('Sair?') && signOut(auth);
+                const handleLogout = () => { if (confirm('Sair?')) { localStorage.removeItem('financas_uid'); signOut(auth); } };
                 const handleAmountInput = (e) => { let val = e.target.value.replace(/\D/g, ''); newTransaction.value.amount = val ? parseFloat(val) / 100 : 0; };
                 const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-                const formatDateShort = (ts) => ts ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(ts.toDate()) : '--';
+                const formatDateShort = (ts) => {
+                    const d = ts?.toDate ? ts.toDate() : new Date(ts);
+                    return isNaN(d) ? '--' : new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(d);
+                };
                 const changeMonth = (d) => { const newD = new Date(currentDate.value); newD.setMonth(newD.getMonth() + d); currentDate.value = newD; };
                 const openModal = () => { editingId.value = null; newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() }; showModal.value = true; };
                 const editTransaction = (t) => { editingId.value = t.id; newTransaction.value = { ...t }; showModal.value = true; };
@@ -324,19 +339,51 @@
                 const saveLimit = async () => { if (!user.value) return; await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'settings', 'config'), { monthlyLimits: { ...monthlyLimitsMap.value, [currentMonthKey.value]: parseFloat(tempLimit.value) } }, { merge: true }); showSettings.value = false; };
                 const deleteTransaction = async (id) => { if (confirm("Excluir?") && user.value) { await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id)); closeModal(); } };
 
-                onMounted(() => {
-                    onAuthStateChanged(auth, async (u) => {
-                        user.value = u; appReady.value = true;
-                        setTimeout(() => document.getElementById('splash-screen')?.classList.add('hidden'), 300);
-                        if (u) {
-                            onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'settings', 'config'), (s) => { if (s.exists()) { defaultLimit.value = s.data().monthlyLimit || 2000; monthlyLimitsMap.value = s.data().monthlyLimits || {}; } });
-                            onSnapshot(collection(db, 'artifacts', appId, 'users', u.uid, 'expenses'), (s) => { transactions.value = s.docs.map(d => ({ id: d.id, ...d.data() })); });
+                const startListeners = (uid) => {
+                    loading.value = true;
+                    // Busca configurações (Cache primeiro)
+                    onSnapshot(doc(db, 'artifacts', appId, 'users', uid, 'settings', 'config'), (s) => {
+                        if (s.exists()) {
+                            defaultLimit.value = s.data().monthlyLimit || 2000;
+                            monthlyLimitsMap.value = s.data().monthlyLimits || {};
                         }
                     });
-                    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+                    // Busca despesas (Cache primeiro)
+                    onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'expenses'), (s) => {
+                        transactions.value = s.docs.map(d => ({ id: d.id, ...d.data() }));
+                        loading.value = false;
+                        // Esconde o splash assim que os primeiros dados (cache ou rede) chegarem
+                        document.getElementById('splash-screen')?.classList.add('hidden');
+                    });
+                };
+
+                onMounted(() => {
+                    // Tenta ouvir a mudança de auth
+                    onAuthStateChanged(auth, (u) => {
+                        user.value = u;
+                        appReady.value = true;
+                        
+                        if (u) {
+                            localStorage.setItem('financas_uid', u.uid);
+                            startListeners(u.uid);
+                        } else {
+                            localStorage.removeItem('financas_uid');
+                            document.getElementById('splash-screen')?.classList.add('hidden');
+                        }
+                    });
+
+                    // Se já tínhamos um UID no localStorage, começamos a carregar os dados IMEDIATAMENTE (Otimista)
+                    const savedUid = localStorage.getItem('financas_uid');
+                    if (savedUid) {
+                        startListeners(savedUid);
+                    }
+
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.register('./sw.js').catch(() => {});
+                    }
                 });
 
-                return { appReady, user, transactions, loading, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, filteredTransactions, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, toggleSettings, saveLimit, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, expectedProgress, showCalculator, calcDisplay, calcHistory, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult, deleteTransaction };
+                return { appReady, user, hasLocalSession, transactions, loading, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, filteredTransactions, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, toggleSettings, saveLimit, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, expectedProgress, showCalculator, calcDisplay, calcHistory, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult, deleteTransaction };
             }
         }).mount('#app');
     </script>
