@@ -83,7 +83,7 @@
     <div id="app" class="flex flex-col h-full relative" v-cloak>
 
         <!-- LOGIN -->
-        <div v-if="appReady && !user" class="absolute inset-0 z-50 bg-emerald-600 flex flex-col items-center justify-center p-6 animate-fade-in">
+        <div v-if="appReady && !user && !hasLocalSession" class="absolute inset-0 z-50 bg-emerald-600 flex flex-col items-center justify-center p-6 animate-fade-in">
             <div class="bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl">
                 <div class="text-center mb-8">
                     <img src="icon.png?v=3" alt="Logo" class="w-16 h-16 mx-auto mb-4 bg-emerald-100 rounded-full p-2">
@@ -254,7 +254,7 @@
         const db = getFirestore(fbApp);
         const appId = 'gastosmensais-3d721'; 
 
-        // Ativa persistência IMEDIATAMENTE
+        // Ativa persistência IMEDIATAMENTE (antes de carregar o Vue)
         enableIndexedDbPersistence(db).catch((err) => {
             console.warn('Firestore Persistence:', err.code);
         });
@@ -263,6 +263,7 @@
             setup() {
                 const appReady = ref(false);
                 const user = ref(null);
+                // Estado inicial baseado no localStorage para evitar "flashing" da tela de login
                 const hasLocalSession = ref(localStorage.getItem('financas_uid') !== null);
                 const transactions = ref([]);
                 const monthlyLimitsMap = ref({}); 
@@ -283,7 +284,7 @@
                 const calcDisplay = ref('0');
                 const calcHistory = ref('');
 
-                // Identificador único "Offline-First"
+                // Identificador híbrido: prefere o objeto de usuário real, mas usa o cache local para operações imediatas
                 const currentUid = computed(() => user.value?.uid || localStorage.getItem('financas_uid'));
 
                 const formattedAmountDisplay = computed(() => newTransaction.value.amount === 0 ? '' : newTransaction.value.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -364,6 +365,7 @@
                     if (listenersActive) return;
                     listenersActive = true;
                     
+                    // Snapshot de Config (entrega cache primeiro se disponível)
                     onSnapshot(doc(db, 'artifacts', appId, 'users', uid, 'settings', 'config'), (s) => {
                         if (s.exists()) {
                             defaultLimit.value = s.data().monthlyLimit || 2000;
@@ -374,9 +376,11 @@
                         document.getElementById('splash-screen')?.classList.add('hidden');
                     });
 
+                    // Snapshot de Despesas (entrega cache primeiro se disponível)
                     onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'expenses'), (s) => {
                         transactions.value = s.docs.map(d => ({ id: d.id, ...d.data() }));
                         loading.value = false;
+                        // Libera o splash screen assim que qualquer dado (cache ou rede) estiver pronto
                         document.getElementById('splash-screen')?.classList.add('hidden');
                     }, (err) => {
                         console.error("Expenses listener error:", err);
@@ -386,11 +390,14 @@
                 };
 
                 onMounted(() => {
+                    // Passo 1: Recuperação Instantânea Otimista
                     const savedUid = localStorage.getItem('financas_uid');
                     if (savedUid) {
+                        // Se temos um UID no cache, já começamos a puxar os dados do Firestore (Cache-First)
                         startListeners(savedUid);
                     }
 
+                    // Passo 2: Sincronização de Autenticação (Real)
                     onAuthStateChanged(auth, (u) => {
                         user.value = u;
                         appReady.value = true;
@@ -400,6 +407,7 @@
                             hasLocalSession.value = true;
                             startListeners(u.uid);
                         } else {
+                            // Só remove o splash e mostra login se realmente não houver sessão local
                             if (!localStorage.getItem('financas_uid')) {
                                 hasLocalSession.value = false;
                                 document.getElementById('splash-screen')?.classList.add('hidden');
