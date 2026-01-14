@@ -77,7 +77,7 @@
         <div class="bg-white/20 p-6 rounded-full mb-6">
             <img src="icon.png?v=3" alt="Logo" class="w-16 h-16 object-contain">
         </div>
-        <p class="text-white font-medium opacity-80 text-sm">Carregando dados...</p>
+        <p class="text-white font-medium opacity-80 text-sm">Organizando tudo...</p>
     </div>
 
     <div id="app" class="flex flex-col h-full relative" v-cloak>
@@ -100,7 +100,7 @@
             </div>
         </div>
         
-        <!-- APP SHELL OTIMISTA -->
+        <!-- APP SHELL OTIMISTA (Aparece se houver usuário autenticado OU sessão salva no cache) -->
         <template v-else-if="user || hasLocalSession">
             <header class="bg-emerald-600 text-white p-5 shadow-lg rounded-b-3xl z-10 shrink-0">
                 <div class="flex justify-between items-center mb-4">
@@ -159,7 +159,9 @@
                     </div>
                 </div>
 
+                <!-- Spinner só aparece se estiver carregando E não houver dados em cache -->
                 <div v-if="loading && filteredTransactions.length === 0" class="text-center text-gray-300 mt-10"><i class="fas fa-circle-notch fa-spin"></i></div>
+                
                 <div v-else-if="filteredTransactions.length === 0" class="text-center text-gray-400 mt-10 p-10 bg-white rounded-3xl border border-dashed border-gray-200">
                     <i class="fas fa-calendar-day text-3xl mb-2 opacity-20"></i>
                     <p class="text-sm">Nenhum gasto registrado.</p>
@@ -254,16 +256,16 @@
         const db = getFirestore(fbApp);
         const appId = 'gastosmensais-3d721'; 
 
-        // Ativa persistência IMEDIATAMENTE (antes de carregar o Vue)
+        // Ativa persistência offline do Firestore IMEDIATAMENTE (Passo crucial para PWA)
         enableIndexedDbPersistence(db).catch((err) => {
-            console.warn('Firestore Persistence:', err.code);
+            console.warn('Persistência Firestore:', err.code);
         });
 
         createApp({
             setup() {
                 const appReady = ref(false);
                 const user = ref(null);
-                // Estado inicial baseado no localStorage para evitar "flashing" da tela de login
+                // Recupera a última sessão conhecida do localStorage (Instantâneo)
                 const hasLocalSession = ref(localStorage.getItem('financas_uid') !== null);
                 const transactions = ref([]);
                 const monthlyLimitsMap = ref({}); 
@@ -284,7 +286,7 @@
                 const calcDisplay = ref('0');
                 const calcHistory = ref('');
 
-                // Identificador híbrido: prefere o objeto de usuário real, mas usa o cache local para operações imediatas
+                // Identificador Único Híbrido: Prioriza o usuário logado, mas usa o cache como fallback imediato
                 const currentUid = computed(() => user.value?.uid || localStorage.getItem('financas_uid'));
 
                 const formattedAmountDisplay = computed(() => newTransaction.value.amount === 0 ? '' : newTransaction.value.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -297,11 +299,12 @@
                     const targetMonth = currentDate.value.getMonth();
                     const targetYear = currentDate.value.getFullYear();
                     return transactions.value.filter(t => {
-                        const d = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+                        // Trata datas que podem vir como Timestamp do Firebase ou String do cache offline
+                        const d = t.date?.toDate ? t.date.toDate() : (t.date ? new Date(t.date) : new Date());
                         return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
                     }).sort((a, b) => {
-                        const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date);
-                        const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date);
+                        const dateA = a.date?.toDate ? a.date.toDate() : (a.date ? new Date(a.date) : new Date());
+                        const dateB = b.date?.toDate ? b.date.toDate() : (b.date ? new Date(b.date) : new Date());
                         return dateB - dateA;
                     });
                 });
@@ -319,6 +322,7 @@
                 const calcCalculate = () => { try { const expression = calcDisplay.value.replace(/X/g, '*').replace(/,/g, '.'); calcHistory.value = calcDisplay.value + ' ='; calcDisplay.value = eval(expression).toString(); } catch (e) { calcDisplay.value = 'Erro'; } };
                 const useCalcResult = () => { calcCalculate(); const res = parseFloat(calcDisplay.value); if (!isNaN(res)) newTransaction.value.amount = res; showCalculator.value = false; };
 
+                // Funções de escrita agora usam currentUid (UID do Cache ou UID do Auth)
                 const saveTransaction = async () => {
                     const uid = currentUid.value;
                     if (!newTransaction.value.description || newTransaction.value.amount <= 0 || !uid) return;
@@ -335,7 +339,7 @@
                 const handleAmountInput = (e) => { let val = e.target.value.replace(/\D/g, ''); newTransaction.value.amount = val ? parseFloat(val) / 100 : 0; };
                 const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
                 const formatDateShort = (ts) => {
-                    const d = ts?.toDate ? ts.toDate() : new Date(ts);
+                    const d = ts?.toDate ? ts.toDate() : (ts ? new Date(ts) : new Date());
                     return isNaN(d) ? '--' : new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(d);
                 };
                 const changeMonth = (d) => { const newD = new Date(currentDate.value); newD.setMonth(newD.getMonth() + d); currentDate.value = newD; };
@@ -362,10 +366,10 @@
                 };
 
                 const startListeners = (uid) => {
-                    if (listenersActive) return;
-                    listenersActive = true;
+                    if (listenersActive === uid) return;
+                    listenersActive = uid;
                     
-                    // Snapshot de Config (entrega cache primeiro se disponível)
+                    // O Firestore entrega o Cache primeiro e depois sincroniza sozinho.
                     onSnapshot(doc(db, 'artifacts', appId, 'users', uid, 'settings', 'config'), (s) => {
                         if (s.exists()) {
                             defaultLimit.value = s.data().monthlyLimit || 2000;
@@ -376,11 +380,10 @@
                         document.getElementById('splash-screen')?.classList.add('hidden');
                     });
 
-                    // Snapshot de Despesas (entrega cache primeiro se disponível)
                     onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'expenses'), (s) => {
                         transactions.value = s.docs.map(d => ({ id: d.id, ...d.data() }));
                         loading.value = false;
-                        // Libera o splash screen assim que qualquer dado (cache ou rede) estiver pronto
+                        // Esconde o Splash assim que os primeiros dados (cache ou rede) chegarem
                         document.getElementById('splash-screen')?.classList.add('hidden');
                     }, (err) => {
                         console.error("Expenses listener error:", err);
@@ -390,14 +393,14 @@
                 };
 
                 onMounted(() => {
-                    // Passo 1: Recuperação Instantânea Otimista
+                    // Passo 1: Recuperação Otimista Imediata (Não espera o Auth)
                     const savedUid = localStorage.getItem('financas_uid');
                     if (savedUid) {
-                        // Se temos um UID no cache, já começamos a puxar os dados do Firestore (Cache-First)
+                        // Se temos um UID no cache, o dashboard aparece instantaneamente e carrega os dados locais
                         startListeners(savedUid);
                     }
 
-                    // Passo 2: Sincronização de Autenticação (Real)
+                    // Passo 2: Sincronização de Autenticação (Trabalha em Background)
                     onAuthStateChanged(auth, (u) => {
                         user.value = u;
                         appReady.value = true;
@@ -407,16 +410,13 @@
                             hasLocalSession.value = true;
                             startListeners(u.uid);
                         } else {
-                            // Se o servidor disse que não estamos logados e não temos rede para revalidar,
-                            // mantemos a sessão local se ela existir, senão mostramos o login.
-                            if (!navigator.onLine && localStorage.getItem('financas_uid')) {
-                                // Estamos offline e temos cache, não fazemos nada (mantemos o app shell)
-                                return;
+                            // Só remove o acesso se estivermos online e o servidor disser que não há sessão.
+                            // Se estivermos offline, mantemos o dashboard com os dados do cache.
+                            if (navigator.onLine) {
+                                localStorage.removeItem('financas_uid');
+                                hasLocalSession.value = false;
+                                transactions.value = [];
                             }
-                            
-                            // Se estamos online e u é null, a sessão expirou de fato.
-                            localStorage.removeItem('financas_uid');
-                            hasLocalSession.value = false;
                             document.getElementById('splash-screen')?.classList.add('hidden');
                         }
                     });
