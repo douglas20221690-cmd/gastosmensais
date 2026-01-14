@@ -407,11 +407,17 @@
                             hasLocalSession.value = true;
                             startListeners(u.uid);
                         } else {
-                            // Só remove o splash e mostra login se realmente não houver sessão local
-                            if (!localStorage.getItem('financas_uid')) {
-                                hasLocalSession.value = false;
-                                document.getElementById('splash-screen')?.classList.add('hidden');
+                            // Se o servidor disse que não estamos logados e não temos rede para revalidar,
+                            // mantemos a sessão local se ela existir, senão mostramos o login.
+                            if (!navigator.onLine && localStorage.getItem('financas_uid')) {
+                                // Estamos offline e temos cache, não fazemos nada (mantemos o app shell)
+                                return;
                             }
+                            
+                            // Se estamos online e u é null, a sessão expirou de fato.
+                            localStorage.removeItem('financas_uid');
+                            hasLocalSession.value = false;
+                            document.getElementById('splash-screen')?.classList.add('hidden');
                         }
                     });
 
