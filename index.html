@@ -203,7 +203,19 @@
                             <div class="flex justify-between items-center ml-1"><label class="text-[10px] font-bold text-gray-400 uppercase">Valor</label><button @click="showCalculator = true" class="text-emerald-600 font-bold text-[10px] uppercase flex items-center gap-1"><i class="fas fa-calculator"></i> Calculadora</button></div>
                             <input type="tel" inputmode="numeric" :value="formattedAmountDisplay" @input="handleAmountInput" class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-2xl outline-none" placeholder="0,00">
                         </div>
-                        <div><label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Descrição</label><input type="text" v-model="newTransaction.description" class="w-full p-4 bg-gray-50 rounded-2xl outline-none text-base font-semibold" placeholder="Ex: Supermercado, Uber, Gaminha..."></div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Descrição</label>
+                            <input type="text" v-model="newTransaction.description" class="w-full p-4 bg-gray-50 rounded-2xl outline-none text-base font-semibold" placeholder="Ex: Supermercado, Uber, Gaminha...">
+                            
+                            <!-- BOTOES ADICAO RAPIDA -->
+                            <div class="flex flex-wrap gap-2 mt-3 ml-1">
+                                <button v-for="cat in ['Transporte', 'Alimentação', 'Outros', 'Higiene', 'Roupas', 'Pets', 'Mercado', 'Casa', 'Lazer', 'Saúde']" 
+                                        @click="newTransaction.description = cat"
+                                        class="px-3 py-1.5 bg-gray-100 text-[10px] font-bold rounded-full text-gray-500 border border-gray-200 active:bg-emerald-100 active:text-emerald-600 transition-colors">
+                                    {{ cat }}
+                                </button>
+                            </div>
+                        </div>
                         
                         <div class="grid grid-cols-2 gap-3 mt-2"><button @click="newTransaction.type = 'debit'" class="p-4 rounded-2xl border-2 font-bold transition-all" :class="newTransaction.type === 'debit' ? 'border-orange-500 text-orange-600 bg-orange-50 shadow-inner' : 'border-gray-100 text-gray-300'">DÉBITO</button><button @click="newTransaction.type = 'credit'" class="p-4 rounded-2xl border-2 font-bold transition-all" :class="newTransaction.type === 'credit' ? 'border-indigo-500 text-indigo-600 bg-indigo-50 shadow-inner' : 'border-gray-100 text-gray-300'">CRÉDITO</button></div>
                         <button @click="saveTransaction" class="w-full bg-emerald-600 text-white py-5 rounded-2xl font-bold text-lg shadow-lg mt-4 active:scale-95">Salvar Gasto</button>
@@ -311,8 +323,17 @@
                 const useCalcResult = () => { calcCalculate(); const res = parseFloat(calcDisplay.value); if (!isNaN(res)) newTransaction.value.amount = res; showCalculator.value = false; };
 
                 const saveTransaction = async () => {
-                    if (!newTransaction.value.description || newTransaction.value.amount <= 0 || !user.value) return;
-                    const data = { ...newTransaction.value }; delete data.id;
+                    // Alteração 1: Removida a obrigatoriedade da descrição. O gasto salva se o valor for > 0.
+                    if (newTransaction.value.amount <= 0 || !user.value) return;
+                    
+                    const data = { ...newTransaction.value }; 
+                    
+                    // Se estiver em branco, define como "Outros"
+                    if (!data.description || data.description.trim() === '') {
+                        data.description = 'Outros';
+                    }
+                    
+                    delete data.id;
                     try { 
                         if (editingId.value) await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), data); 
                         else await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), data); 
@@ -368,4 +389,3 @@
     </script>
 </body>
 </html>
-
