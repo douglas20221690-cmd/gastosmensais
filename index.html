@@ -111,12 +111,48 @@
                     </div>
                 </div>
 
+                <!-- SELETOR DE MÊS -->
                 <div class="flex items-center justify-between bg-emerald-700/40 rounded-xl p-1 mb-3">
                     <button @click="changeMonth(-1)" class="w-9 h-9 flex items-center justify-center"><i class="fas fa-chevron-left text-xs"></i></button>
                     <span class="font-bold text-sm capitalize">{{ currentMonthDisplay }}</span>
                     <button @click="changeMonth(1)" class="w-9 h-9 flex items-center justify-center"><i class="fas fa-chevron-right text-xs"></i></button>
                 </div>
 
+                <!-- FORMULÁRIO DE LANÇAMENTO RÁPIDO NO CABEÇALHO -->
+                <div class="bg-emerald-700/30 p-3 rounded-2xl mb-4 space-y-2 border border-white/10 shadow-inner">
+                    <div class="flex gap-2 items-center">
+                        <div class="flex-1 relative">
+                             <input type="tel" inputmode="numeric" :value="formattedAmountDisplay" @input="handleAmountInput" 
+                                   class="w-full pl-3 pr-8 py-3 bg-white/20 rounded-xl font-bold text-white outline-none placeholder:text-emerald-100/40 text-lg" 
+                                   placeholder="0,00">
+                             <button @click="showCalculator = true" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 text-xs">
+                                 <i class="fas fa-calculator"></i>
+                             </button>
+                        </div>
+                        <div class="flex bg-white/20 rounded-xl p-1 gap-1 h-[52px] items-center">
+                            <button @click="newTransaction.type = 'debit'" 
+                                    class="px-3 h-full rounded-lg text-[10px] font-black transition-all uppercase"
+                                    :class="newTransaction.type === 'debit' ? 'bg-orange-500 text-white shadow-md' : 'text-emerald-100/60'">
+                                Déb
+                            </button>
+                            <button @click="newTransaction.type = 'credit'" 
+                                    class="px-3 h-full rounded-lg text-[10px] font-black transition-all uppercase"
+                                    :class="newTransaction.type === 'credit' ? 'bg-indigo-500 text-white shadow-md' : 'text-emerald-100/60'">
+                                Cré
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" v-model="newTransaction.description" 
+                               class="flex-1 px-4 py-3 bg-white/20 rounded-xl text-sm font-semibold text-white outline-none placeholder:text-emerald-100/40" 
+                               placeholder="Descrição (ex: Mercado)">
+                        <button @click="saveTransaction" class="bg-white text-emerald-600 px-5 rounded-xl font-black text-xs shadow-lg active:scale-95 uppercase">
+                            Salvar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- INFO DE SALDO E PROGRESSO -->
                 <div class="animate-fade-in space-y-1">
                     <div class="flex justify-between items-end">
                         <div>
@@ -194,14 +230,24 @@
                 <i class="fas fa-plus"></i>
             </button>
 
-            <!-- MODAL LANÇAMENTO -->
+            <!-- MODAL LANÇAMENTO (EDIÇÃO) -->
             <div v-if="showModal" class="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center backdrop-blur-sm" @click.self="closeModal">
-                <div class="bg-white w-full max-lg p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
+                <div class="bg-white w-full max-w-lg p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
                     <h2 class="text-xl font-bold text-gray-800 mb-6">{{ editingId ? 'Editar Gasto' : 'Novo Gasto' }}</h2>
                     <div class="space-y-4">
-                        <div>
-                            <div class="flex justify-between items-center ml-1"><label class="text-[10px] font-bold text-gray-400 uppercase">Valor</label><button @click="showCalculator = true" class="text-emerald-600 font-bold text-[10px] uppercase flex items-center gap-1"><i class="fas fa-calculator"></i> Calculadora</button></div>
-                            <input type="tel" inputmode="numeric" :value="formattedAmountDisplay" @input="handleAmountInput" class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-2xl outline-none" placeholder="0,00">
+                        <div class="flex gap-3">
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center ml-1"><label class="text-[10px] font-bold text-gray-400 uppercase">Valor</label><button @click="showCalculator = true" class="text-emerald-600 font-bold text-[10px] uppercase flex items-center gap-1"><i class="fas fa-calculator"></i> Calculadora</button></div>
+                                <input type="tel" inputmode="numeric" :value="formattedAmountDisplay" @input="handleAmountInput" class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-2xl outline-none" placeholder="0,00">
+                            </div>
+                            <div class="flex flex-col justify-end gap-2 mb-0.5">
+                                <button @click="newTransaction.type = 'debit'" 
+                                        class="px-4 py-2 rounded-xl border-2 font-bold transition-all text-xs" 
+                                        :class="newTransaction.type === 'debit' ? 'border-orange-500 text-orange-600 bg-orange-50 shadow-inner' : 'border-gray-100 text-gray-300'">DÉBITO</button>
+                                <button @click="newTransaction.type = 'credit'" 
+                                        class="px-4 py-2 rounded-xl border-2 font-bold transition-all text-xs" 
+                                        :class="newTransaction.type === 'credit' ? 'border-indigo-500 text-indigo-600 bg-indigo-50 shadow-inner' : 'border-gray-100 text-gray-300'">CRÉDITO</button>
+                            </div>
                         </div>
                         <div>
                             <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Descrição</label>
@@ -217,7 +263,6 @@
                             </div>
                         </div>
                         
-                        <div class="grid grid-cols-2 gap-3 mt-2"><button @click="newTransaction.type = 'debit'" class="p-4 rounded-2xl border-2 font-bold transition-all" :class="newTransaction.type === 'debit' ? 'border-orange-500 text-orange-600 bg-orange-50 shadow-inner' : 'border-gray-100 text-gray-300'">DÉBITO</button><button @click="newTransaction.type = 'credit'" class="p-4 rounded-2xl border-2 font-bold transition-all" :class="newTransaction.type === 'credit' ? 'border-indigo-500 text-indigo-600 bg-indigo-50 shadow-inner' : 'border-gray-100 text-gray-300'">CRÉDITO</button></div>
                         <button @click="saveTransaction" class="w-full bg-emerald-600 text-white py-5 rounded-2xl font-bold text-lg shadow-lg mt-4 active:scale-95">Salvar Gasto</button>
                         <button v-if="editingId" @click="deleteTransaction(editingId)" class="w-full text-red-500 text-xs font-black py-2 uppercase tracking-widest">Excluir Permanente</button>
                     </div>
@@ -265,7 +310,6 @@
         const db = getFirestore(fbApp);
         const appId = 'gastosmensais-3d721'; 
 
-        // Ativa persistência nativa do Firestore
         enableIndexedDbPersistence(db).catch(() => {});
 
         createApp({
@@ -323,20 +367,22 @@
                 const useCalcResult = () => { calcCalculate(); const res = parseFloat(calcDisplay.value); if (!isNaN(res)) newTransaction.value.amount = res; showCalculator.value = false; };
 
                 const saveTransaction = async () => {
-                    // Alteração 1: Removida a obrigatoriedade da descrição. O gasto salva se o valor for > 0.
                     if (newTransaction.value.amount <= 0 || !user.value) return;
                     
                     const data = { ...newTransaction.value }; 
-                    
-                    // Se estiver em branco, define como "Outros"
                     if (!data.description || data.description.trim() === '') {
                         data.description = 'Outros';
                     }
                     
                     delete data.id;
                     try { 
-                        if (editingId.value) await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), data); 
-                        else await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), data); 
+                        if (editingId.value) {
+                            await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), data); 
+                        } else {
+                            await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), data); 
+                        }
+                        // Reseta o formulário após salvar com sucesso (para facilitar lançamentos contínuos no cabeçalho)
+                        newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() };
                         closeModal(); 
                     } catch (e) { console.error(e); }
                 };
@@ -361,13 +407,9 @@
                     onAuthStateChanged(auth, (u) => {
                         user.value = u; 
                         appReady.value = true;
-                        
-                        // Esconde o splash assim que o estado inicial for determinado
                         setTimeout(() => document.getElementById('splash-screen')?.classList.add('hidden'), 300);
-                        
                         if (u) {
                             loading.value = true;
-                            // Firestore onSnapshot automaticamente gerencia cache e sincronização nativa
                             onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'settings', 'config'), (s) => { 
                                 if (s.exists()) { 
                                     defaultLimit.value = s.data().monthlyLimit || 2000; 
