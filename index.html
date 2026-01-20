@@ -84,7 +84,7 @@
 
         <!-- LOGIN -->
         <div v-if="appReady && !user" class="absolute inset-0 z-50 bg-emerald-600 flex flex-col items-center justify-center p-6 animate-fade-in">
-            <div class="bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl">
+            <div class="bg-white w-full max-sm p-8 rounded-3xl shadow-2xl">
                 <div class="text-center mb-8">
                     <img src="icon.png?v=3" alt="Logo" class="w-16 h-16 mx-auto mb-4 bg-emerald-100 rounded-full p-2">
                     <h1 class="text-xl font-bold text-gray-800">Minhas Finanças</h1>
@@ -381,8 +381,6 @@
                         } else {
                             await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), data); 
                         }
-                        // Reseta o formulário após salvar com sucesso (para facilitar lançamentos contínuos no cabeçalho)
-                        newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() };
                         closeModal(); 
                     } catch (e) { console.error(e); }
                 };
@@ -398,10 +396,23 @@
                 const changeMonth = (d) => { const newD = new Date(currentDate.value); newD.setMonth(newD.getMonth() + d); currentDate.value = newD; };
                 const openModal = () => { editingId.value = null; newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() }; showModal.value = true; };
                 const editTransaction = (t) => { editingId.value = t.id; newTransaction.value = { ...t }; showModal.value = true; };
-                const closeModal = () => showModal.value = false;
+                
+                // Melhorado para sempre limpar o estado global de lançamento ao fechar
+                const closeModal = () => { 
+                    showModal.value = false; 
+                    editingId.value = null;
+                    newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() };
+                };
+                
                 const toggleSettings = () => { tempLimit.value = currentMonthlyLimit.value; showSettings.value = !showSettings.value; };
                 const saveLimit = async () => { if (!user.value) return; await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'settings', 'config'), { monthlyLimits: { ...monthlyLimitsMap.value, [currentMonthKey.value]: parseFloat(tempLimit.value) } }, { merge: true }); showSettings.value = false; };
-                const deleteTransaction = async (id) => { if (confirm("Excluir?") && user.value) { await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id)); closeModal(); } };
+                
+                const deleteTransaction = async (id) => { 
+                    if (confirm("Excluir?") && user.value) { 
+                        await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id)); 
+                        closeModal(); 
+                    } 
+                };
 
                 onMounted(() => {
                     onAuthStateChanged(auth, (u) => {
