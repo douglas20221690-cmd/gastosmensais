@@ -38,15 +38,12 @@
         #splash-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
         
         .expense-item { padding: 0.9rem 1.1rem; border-radius: 1.2rem; }
-        .expense-icon { width: 2.6rem; height: 2.6rem; font-size: 0.9rem; }
-        
         .calc-btn {
             background: #f3f4f6; padding: 1.2rem 0; border-radius: 1rem;
             font-weight: 800; font-size: 1.2rem; display: flex;
             align-items: center; justify-content: center; transition: background 0.1s;
         }
         .calc-btn:active { background: #e5e7eb; scale: 0.95; }
-        .calc-btn-op { background: #10b981; color: white; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden">
@@ -55,7 +52,7 @@
         <div class="bg-white/20 p-6 rounded-full mb-6">
             <img src="icon.png?v=3" alt="Logo" class="w-16 h-16 object-contain">
         </div>
-        <p class="text-white font-medium opacity-80 text-sm">Sincronizando dados...</p>
+        <p class="text-white font-medium opacity-80 text-sm">Atualizando sistema...</p>
     </div>
 
     <div id="app" class="flex flex-col h-full relative" v-cloak>
@@ -84,12 +81,8 @@
                         Financeiro
                     </h1>
                     <div class="flex gap-4">
-                        <!-- BOTÃO DE SINCRONIZAÇÃO MANUAL (CASO O VALOR ESTEJA ERRADO) -->
-                        <button @click="forceSync" :class="{'animate-spin opacity-50': isSyncing}" title="Recalcular Saldo">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                        <button @click="toggleSettings" class="opacity-80"><i class="fas fa-cog"></i></button>
-                        <button @click="handleLogout" class="opacity-80"><i class="fas fa-sign-out-alt"></i></button>
+                        <button @click="toggleSettings" class="opacity-80" title="Configurações"><i class="fas fa-cog"></i></button>
+                        <button @click="handleLogout" class="opacity-80" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
                     </div>
                 </div>
 
@@ -100,30 +93,10 @@
                     <button @click="changeMonth(1)" class="w-9 h-9 flex items-center justify-center"><i class="fas fa-chevron-right text-xs"></i></button>
                 </div>
 
-                <!-- FORMULÁRIO DE LANÇAMENTO RÁPIDO -->
-                <div class="bg-emerald-700/30 p-3 rounded-2xl mb-4 border border-white/10 shadow-inner">
-                    <div class="flex gap-2 items-center mb-2">
-                        <div class="flex-1 relative">
-                             <input type="tel" inputmode="numeric" :value="formattedAmountDisplay" @input="handleAmountInput" 
-                                   class="w-full pl-3 pr-8 py-3 bg-white/20 rounded-xl font-bold text-white outline-none placeholder:text-emerald-100/40 text-lg" 
-                                   placeholder="0,00">
-                             <button @click="showCalculator = true" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 text-xs"><i class="fas fa-calculator"></i></button>
-                        </div>
-                        <div class="flex bg-white/20 rounded-xl p-1 gap-1 h-[52px] items-center">
-                            <button @click="newTransaction.type = 'debit'" class="px-3 h-full rounded-lg text-[10px] font-black uppercase transition-all" :class="newTransaction.type === 'debit' ? 'bg-orange-500 text-white shadow-md' : 'text-emerald-100/60'">Déb</button>
-                            <button @click="newTransaction.type = 'credit'" class="px-3 h-full rounded-lg text-[10px] font-black uppercase transition-all" :class="newTransaction.type === 'credit' ? 'bg-indigo-500 text-white shadow-md' : 'text-emerald-100/60'">Cré</button>
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <input type="text" v-model="newTransaction.description" class="flex-1 px-4 py-3 bg-white/20 rounded-xl text-sm font-semibold text-white outline-none placeholder:text-emerald-100/40" placeholder="Descrição">
-                        <button @click="saveTransaction" class="bg-white text-emerald-600 px-5 rounded-xl font-black text-xs shadow-lg active:scale-95 uppercase">Salvar</button>
-                    </div>
-                </div>
-
-                <!-- INFO DE SALDO -->
+                <!-- DASHBOARD -->
                 <div class="animate-fade-in space-y-1">
                     <div v-if="isSyncing" class="text-center py-2 bg-white/10 rounded-lg animate-pulse">
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-200">Sincronizando dados...</p>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-200">Sincronizando Mês...</p>
                     </div>
                     <div v-else class="flex justify-between items-end">
                         <div>
@@ -138,7 +111,6 @@
                     
                     <div class="mt-3 h-2 bg-emerald-800/30 rounded-full overflow-hidden relative">
                         <div class="h-full transition-all duration-500 absolute left-0 top-0 z-10" :class="progressBarColor" :style="{ width: progressPercentage + '%' }"></div>
-                        <div class="h-full w-0.5 bg-white/40 absolute top-0 z-20" :style="{ left: expectedProgress + '%' }"></div>
                     </div>
                     
                     <div class="flex justify-between text-[10px] text-emerald-100 font-bold uppercase mt-1">
@@ -148,63 +120,54 @@
                 </div>
             </header>
 
-            <!-- LISTA -->
-            <main class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar pb-32">
-                <div class="grid grid-cols-2 gap-3 mb-2">
-                    <div class="bg-orange-50 p-3 rounded-2xl border border-orange-100 flex flex-col items-center">
-                        <span class="text-[10px] text-orange-400 font-bold uppercase tracking-tight">Total Débito</span>
-                        <span class="text-base font-bold text-orange-700">{{ formatCurrency(totalDebit) }}</span>
+            <!-- LANÇAMENTO RÁPIDO -->
+            <div class="px-4 pt-4 shrink-0">
+                <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+                    <div class="flex gap-2 items-center">
+                        <input type="tel" inputmode="numeric" :value="formattedAmountDisplay" @input="handleAmountInput" 
+                               class="flex-1 px-4 py-3 bg-gray-50 rounded-xl font-bold text-gray-800 outline-none placeholder:text-gray-300" 
+                               placeholder="0,00">
+                        <div class="flex bg-gray-50 rounded-xl p-1 gap-1 h-[52px] items-center">
+                            <button @click="newTransaction.type = 'debit'" class="px-3 h-full rounded-lg text-[10px] font-black uppercase" :class="newTransaction.type === 'debit' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-300'">Déb</button>
+                            <button @click="newTransaction.type = 'credit'" class="px-3 h-full rounded-lg text-[10px] font-black uppercase" :class="newTransaction.type === 'credit' ? 'bg-indigo-500 text-white shadow-md' : 'text-gray-300'">Cré</button>
+                        </div>
                     </div>
-                    <div class="bg-indigo-50 p-3 rounded-2xl border border-indigo-100 flex flex-col items-center">
-                        <span class="text-[10px] text-indigo-400 font-bold uppercase tracking-tight">Total Crédito</span>
-                        <span class="text-base font-bold text-indigo-700">{{ formatCurrency(totalCredit) }}</span>
+                    <div class="flex gap-2">
+                        <input type="text" v-model="newTransaction.description" class="flex-1 px-4 py-3 bg-gray-50 rounded-xl text-sm font-semibold text-gray-800 outline-none placeholder:text-gray-300" placeholder="Descrição do gasto">
+                        <button @click="saveTransaction" class="bg-emerald-600 text-white px-6 rounded-xl font-black text-xs uppercase shadow-lg active:scale-95">Salvar</button>
                     </div>
                 </div>
+            </div>
 
-                <div v-if="!historyLoaded" class="py-6 flex flex-col items-center justify-center space-y-4">
-                    <button @click="loadHistory" class="px-8 py-4 bg-white border border-emerald-100 text-emerald-600 font-bold rounded-2xl shadow-sm active:scale-95 flex items-center gap-2">
-                        <i class="fas fa-history"></i> Ver Histórico do Mês
-                    </button>
-                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Clique para ver todo o histórico de gastos do mês</p>
+            <!-- LISTA DE GASTOS -->
+            <main class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar pb-24">
+                <div v-if="transactions.length === 0 && !isSyncing" class="text-center py-10 bg-white rounded-3xl border border-dashed text-gray-400 text-sm">
+                    Nenhum gasto registrado.
                 </div>
 
-                <div v-else>
-                    <div v-if="loadingHistory" class="text-center text-gray-300 py-10"><i class="fas fa-circle-notch fa-spin"></i></div>
-                    <div v-else-if="filteredTransactions.length === 0" class="text-center text-gray-400 py-10 bg-white rounded-3xl border border-dashed border-gray-200">
-                        <p class="text-sm">Nenhum gasto neste mês.</p>
+                <div v-for="t in sortedTransactions" :key="t.id" class="expense-item bg-white shadow-sm border border-gray-100 flex justify-between items-center animate-fade-in mb-2">
+                    <div class="flex items-center gap-3">
+                        <div class="expense-icon w-10 h-10 rounded-full flex items-center justify-center text-white text-xs shadow-sm" :class="t.type === 'credit' ? 'bg-indigo-500' : 'bg-orange-500'">
+                            <i class="fas" :class="t.type === 'credit' ? 'fa-credit-card' : 'fa-money-bill-wave'"></i>
+                        </div>
+                        <div class="leading-tight">
+                            <p class="font-bold text-gray-800 text-sm truncate max-w-[150px]">{{ t.description || 'Gasto' }}</p>
+                            <p class="text-[11px] text-gray-400 font-medium">{{ formatDateShort(t.date) }}</p>
+                        </div>
                     </div>
-                    
-                    <div v-for="t in filteredTransactions" :key="t.id" class="expense-item bg-white shadow-sm border border-gray-100 flex justify-between items-center animate-fade-in mb-2">
-                        <div class="flex items-center gap-3">
-                            <div class="expense-icon rounded-full flex items-center justify-center text-white shadow-sm" :class="t.type === 'credit' ? 'bg-indigo-500' : 'bg-orange-500'">
-                                <i class="fas" :class="t.type === 'credit' ? 'fa-credit-card' : 'fa-money-bill-wave'"></i>
-                            </div>
-                            <div class="leading-tight">
-                                <p class="font-bold text-gray-800 text-sm truncate max-w-[140px]">{{ t.description || 'Gasto' }}</p>
-                                <p class="text-[11px] text-gray-400 font-medium">{{ formatDateShort(t.date || t.createdAt) }}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-gray-900 text-base">{{ formatCurrency(t.amount) }}</span>
-                            <button @click="editTransaction(t)" class="text-gray-200 hover:text-emerald-500 p-2"><i class="fas fa-pen text-xs"></i></button>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-gray-900 text-base">{{ formatCurrency(t.amount) }}</span>
+                        <button @click="editTransaction(t)" class="text-gray-200 p-2"><i class="fas fa-pen text-xs"></i></button>
                     </div>
                 </div>
             </main>
 
-            <!-- NAVBAR -->
-            <nav class="fixed bottom-0 left-0 right-0 bg-white border-top p-4 flex justify-around pb-safe z-40">
-                <button class="flex flex-col items-center text-emerald-600 font-bold text-[10px]">
-                    <i class="fas fa-wallet text-xl mb-1"></i>
-                    <span>PRINCIPAL</span>
-                </button>
-            </nav>
-
+            <!-- BOTAO FLUTUANTE -->
             <button @click="openModal" class="fixed bottom-7 left-1/2 -translate-x-1/2 w-16 h-16 bg-emerald-600 text-white rounded-full shadow-2xl flex items-center justify-center text-2xl z-50 border-4 border-white">
                 <i class="fas fa-plus"></i>
             </button>
 
-            <!-- MODAIS -->
+            <!-- MODAL EDIÇÃO -->
             <div v-if="showModal" class="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center backdrop-blur-sm" @click.self="closeModal">
                 <div class="bg-white w-full max-w-lg p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
                     <h2 class="text-xl font-bold text-gray-800 mb-6">{{ editingId ? 'Editar Gasto' : 'Novo Gasto' }}</h2>
@@ -220,7 +183,7 @@
                             </div>
                         </div>
                         <input type="text" v-model="newTransaction.description" class="w-full p-4 bg-gray-50 rounded-2xl outline-none text-base font-semibold" placeholder="Descrição">
-                        <button @click="saveTransaction" class="w-full bg-emerald-600 text-white py-5 rounded-2xl font-bold text-lg shadow-lg">Salvar Gasto</button>
+                        <button @click="saveTransaction" class="w-full bg-emerald-600 text-white py-5 rounded-2xl font-bold text-lg shadow-lg">Confirmar</button>
                         <button v-if="editingId" @click="deleteTransaction(editingId)" class="w-full text-red-500 text-xs font-black py-2 uppercase">Excluir Permanente</button>
                     </div>
                 </div>
@@ -229,28 +192,36 @@
             <!-- CALCULADORA -->
             <div v-if="showCalculator" class="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center backdrop-blur-md" @click.self="showCalculator = false">
                 <div class="bg-white w-full max-sm p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
-                    <div class="bg-gray-100 p-6 rounded-2xl mb-6 text-right">
-                        <div class="text-3xl font-black text-emerald-600 truncate">{{ calcDisplay }}</div>
-                    </div>
+                    <div class="bg-gray-100 p-6 rounded-2xl mb-6 text-right font-black text-3xl text-emerald-600 truncate">{{ calcDisplay }}</div>
                     <div class="grid grid-cols-4 gap-2">
-                        <button @click="calcClear" class="calc-btn text-red-500">C</button>
-                        <button @click="calcBackspace" class="calc-btn text-gray-400"><i class="fas fa-backspace"></i></button>
-                        <button @click="calcAppend('/')" class="calc-btn calc-btn-op">÷</button>
-                        <button @click="calcAppend('*')" class="calc-btn calc-btn-op">×</button>
-                        <button v-for="n in ['7','8','9','-','4','5','6','+','1','2','3']" @click="calcAppend(n)" :class="['calc-btn', isNaN(n) ? 'calc-btn-op' : '']">{{n}}</button>
-                        <button @click="calcCalculate" class="calc-btn bg-indigo-500 text-white">=</button>
-                        <button @click="calcAppend('0')" class="calc-btn col-span-2">0</button>
-                        <button @click="calcAppend('.')" class="calc-btn">.</button>
-                        <button @click="useCalcResult" class="calc-btn bg-emerald-600 text-white"><i class="fas fa-check"></i></button>
+                        <button v-for="b in ['C','←','÷','×','7','8','9','-','4','5','6','+','1','2','3','=','0','.','OK']" 
+                                @click="handleCalc(b)" 
+                                :class="['calc-btn', b === 'OK' ? 'bg-emerald-600 text-white' : b === '=' ? 'bg-indigo-500 text-white' : '']">
+                            <span v-if="b === '←'"><i class="fas fa-backspace text-gray-400"></i></span>
+                            <span v-else-if="b === 'OK'"><i class="fas fa-check"></i></span>
+                            <span v-else>{{b}}</span>
+                        </button>
                     </div>
                 </div>
             </div>
 
+            <!-- CONFIGURAÇÕES (BOTÃO DE SINCRONIZAR MANUAL AGORA AQUI DENTRO) -->
             <div v-if="showSettings" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-6 backdrop-blur-md" @click.self="showSettings = false">
-                <div class="bg-white w-full max-w-xs p-8 rounded-3xl shadow-2xl">
-                    <h3 class="font-bold text-lg mb-2">Limite Mensal</h3>
-                    <input type="number" v-model="tempLimit" class="w-full p-4 bg-gray-100 rounded-2xl mb-6 font-bold text-xl outline-none">
-                    <button @click="saveLimit" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg">Salvar Limite</button>
+                <div class="bg-white w-full max-w-xs p-8 rounded-3xl shadow-2xl space-y-6">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2">Meta do Mês</h3>
+                        <input type="number" v-model="tempLimit" class="w-full p-4 bg-gray-100 rounded-2xl font-bold text-xl outline-none mb-3">
+                        <button @click="saveLimit" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg active:scale-95 transition-all">Salvar Meta</button>
+                    </div>
+                    
+                    <div class="pt-4 border-t border-gray-100">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase mb-3 tracking-widest text-center">Ferramentas de Manutenção</p>
+                        <button @click="forceSync" :disabled="isSyncing" class="w-full py-4 px-4 bg-orange-50 text-orange-600 rounded-2xl font-bold text-xs uppercase flex items-center justify-center gap-2 active:scale-95 transition-all">
+                            <i class="fas fa-sync-alt" :class="{'animate-spin': isSyncing}"></i>
+                            {{ isSyncing ? 'Sincronizando...' : 'Recalcular Saldo do Mês' }}
+                        </button>
+                        <p class="text-[9px] text-gray-400 mt-2 text-center leading-tight">Use apenas se o valor total estiver incorreto ou se quiser atualizar o resumo deste mês.</p>
+                    </div>
                 </div>
             </div>
         </template>
@@ -260,7 +231,7 @@
         const { createApp, ref, computed, onMounted, watch } = Vue;
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc, increment, getDoc, getDocs, query, orderBy, limit, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, increment, getDocs, query, onSnapshot, arrayUnion, arrayRemove, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = { apiKey: "AIzaSyBynG1L1voQ-GJnjwv7KeKV6p64eDxD8KY", authDomain: "gastosmensais-3d721.firebaseapp.com", projectId: "gastosmensais-3d721", storageBucket: "gastosmensais-3d721.firebasestorage.app", messagingSenderId: "564092336226", appId: "1:564092336226:web:8d68fb169fc09dce84793b" };
         const fbApp = initializeApp(firebaseConfig);
@@ -274,15 +245,11 @@
             setup() {
                 const appReady = ref(false);
                 const user = ref(null);
-                const transactions = ref([]);
                 const monthlyLimitsMap = ref({}); 
                 const defaultLimit = ref(2000);
-                const historyLoaded = ref(false);
-                const loadingHistory = ref(false);
                 const isSyncing = ref(false);
                 const currentDate = ref(new Date());
-
-                const currentMonthSummary = ref({ totalDebit: 0, totalCredit: 0 });
+                const currentMonthSummary = ref({ totalDebit: 0, totalCredit: 0, items: [] });
 
                 const loginEmail = ref('douglasrgomes@gmail.com');
                 const loginPassword = ref('');
@@ -291,127 +258,91 @@
                 const showSettings = ref(false);
                 const tempLimit = ref(2000);
                 const editingId = ref(null);
-                const oldAmount = ref(0);
-                const oldType = ref('debit');
+                const editingItemRaw = ref(null);
 
                 const newTransaction = ref({ amount: 0, description: '', type: 'debit', date: new Date() });
                 const showCalculator = ref(false);
                 const calcDisplay = ref('0');
 
-                const formattedAmountDisplay = computed(() => newTransaction.value.amount === 0 ? '' : newTransaction.value.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+                const currentMonthKey = computed(() => `${currentDate.value.getFullYear()}-${(currentDate.value.getMonth() + 1).toString().padStart(2, '0')}`);
                 const currentMonthDisplay = computed(() => new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentDate.value));
-                const currentMonthKey = computed(() => { 
-                    const m = currentDate.value.getMonth() + 1; 
-                    const y = currentDate.value.getFullYear(); 
-                    return `${y}-${m.toString().padStart(2, '0')}`; 
-                });
-                
                 const currentMonthlyLimit = computed(() => monthlyLimitsMap.value[currentMonthKey.value] ?? defaultLimit.value);
+                
                 const totalSpent = computed(() => currentMonthSummary.value.totalDebit + currentMonthSummary.value.totalCredit);
                 const totalDebit = computed(() => currentMonthSummary.value.totalDebit);
                 const totalCredit = computed(() => currentMonthSummary.value.totalCredit);
                 const remainingBudget = computed(() => currentMonthlyLimit.value - totalSpent.value);
                 const progressPercentage = computed(() => Math.min((totalSpent.value / (currentMonthlyLimit.value || 1)) * 100, 100));
-                
-                const expectedProgress = computed(() => { 
-                    const now = new Date(); 
-                    if (now.getMonth() !== currentDate.value.getMonth() || now.getFullYear() !== currentDate.value.getFullYear()) return 100;
-                    const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); 
-                    return (now.getDate() / totalDays) * 100; 
-                });
-                
-                const progressBarColor = computed(() => progressPercentage.value > 95 ? 'bg-red-600' : progressPercentage.value > expectedProgress.value ? 'bg-orange-500' : 'bg-emerald-300');
-                const filteredTransactions = computed(() => transactions.value);
+                const progressBarColor = computed(() => progressPercentage.value > 95 ? 'bg-red-600' : 'bg-emerald-300');
+                const formattedAmountDisplay = computed(() => newTransaction.value.amount === 0 ? '' : newTransaction.value.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+                const transactions = computed(() => currentMonthSummary.value.items || []);
+                const sortedTransactions = computed(() => [...transactions.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
 
-                // FUNÇÃO DE MIGRAÇÃO REFORÇADA
-                const syncSummaryFromExpenses = async (u, monthKey) => {
+                // Sincronização automática para meses sem resumo
+                const syncMonth = async (u, monthKey) => {
                     if (isSyncing.value) return;
                     isSyncing.value = true;
                     try {
                         const targetMonth = currentDate.value.getMonth();
                         const targetYear = currentDate.value.getFullYear();
                         
-                        // Lemos os gastos da conta
+                        // Busca TODOS os gastos para garantir o recalculo correto
                         const q = query(collection(db, 'artifacts', appId, 'users', u.uid, 'expenses'));
                         const snap = await getDocs(q);
                         
-                        let deb = 0;
-                        let cre = 0;
-                        
+                        let deb = 0, cre = 0, items = [];
                         snap.docs.forEach(d => {
                             const data = d.data();
-                            // Verifica data ou createdAt (suporta múltiplos formatos)
-                            const rawDate = data.date || data.createdAt;
-                            if (!rawDate) return;
-
-                            const dDate = rawDate.toDate ? rawDate.toDate() : new Date(rawDate);
+                            const dDate = data.date?.toDate ? data.date.toDate() : new Date(data.date);
                             
-                            if (!isNaN(dDate.getTime()) && dDate.getMonth() === targetMonth && dDate.getFullYear() === targetYear) {
-                                const val = parseFloat(data.amount) || 0;
-                                if (data.type === 'credit') cre += val;
-                                else deb += val;
+                            // Filtra apenas o mês atual selecionado
+                            if (dDate.getMonth() === targetMonth && dDate.getFullYear() === targetYear) {
+                                const item = { id: d.id, ...data, date: dDate.toISOString() };
+                                items.push(item);
+                                if (data.type === 'credit') cre += (data.amount || 0);
+                                else deb += (data.amount || 0);
                             }
                         });
-
-                        // Atualiza o documento de resumo no Firebase
-                        const summaryRef = doc(db, 'artifacts', appId, 'users', u.uid, 'summaries', monthKey);
-                        const finalData = { totalDebit: deb, totalCredit: cre, lastSync: new Date().toISOString() };
-                        await setDoc(summaryRef, finalData, { merge: true });
                         
-                        // Atualiza localmente para resposta imediata
-                        currentMonthSummary.value = finalData;
-                    } catch (e) {
-                        console.error("Erro na sincronização:", e);
-                    } finally {
-                        isSyncing.value = false;
-                    }
-                };
-
-                const forceSync = () => user.value && syncSummaryFromExpenses(user.value, currentMonthKey.value);
-
-                const loadHistory = async () => {
-                    if (!user.value) return;
-                    loadingHistory.value = true;
-                    try {
-                        const q = query(
-                            collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'),
-                            orderBy('date', 'desc'),
-                            limit(80) 
-                        );
-                        const snap = await getDocs(q);
-                        const targetMonth = currentDate.value.getMonth();
-                        const targetYear = currentDate.value.getFullYear();
-                        
-                        transactions.value = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => {
-                            const rawDate = t.date || t.createdAt;
-                            const d = rawDate?.toDate ? rawDate.toDate() : new Date(rawDate);
-                            return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
-                        });
-                        historyLoaded.value = true;
-                    } catch (e) { console.error(e); } finally { loadingHistory.value = false; }
+                        // Salva o resumo (1 leitura futura)
+                        await setDoc(doc(db, 'artifacts', appId, 'users', u.uid, 'summaries', monthKey), { 
+                            totalDebit: deb, 
+                            totalCredit: cre, 
+                            items: items,
+                            lastUpdated: new Date().toISOString()
+                        }, { merge: true });
+                    } catch (e) { console.error("Erro na sincronização:", e); } finally { isSyncing.value = false; }
                 };
 
                 const saveTransaction = async () => {
                     if (newTransaction.value.amount <= 0 || !user.value) return;
-                    const data = { ...newTransaction.value, updatedAt: new Date() };
-                    if (!data.description) data.description = 'Gasto';
+                    
+                    const transactionId = editingId.value || doc(collection(db, 'temp')).id;
+                    const dateObj = newTransaction.value.date instanceof Date ? newTransaction.value.date : new Date(newTransaction.value.date);
+                    const data = { id: transactionId, amount: newTransaction.value.amount, description: newTransaction.value.description || 'Gasto', type: newTransaction.value.type, date: dateObj.toISOString() };
                     
                     const summaryRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'summaries', currentMonthKey.value);
                     const typeField = data.type === 'credit' ? 'totalCredit' : 'totalDebit';
 
                     try {
                         if (editingId.value) {
-                            const oldTypeField = oldType.value === 'credit' ? 'totalCredit' : 'totalDebit';
+                            const oldTypeField = editingItemRaw.value.type === 'credit' ? 'totalCredit' : 'totalDebit';
                             await updateDoc(summaryRef, { 
-                                [oldTypeField]: increment(-oldAmount.value),
-                                [typeField]: increment(data.amount)
+                                [oldTypeField]: increment(-editingItemRaw.value.amount), 
+                                items: arrayRemove(editingItemRaw.value) 
                             });
-                            await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), data);
+                            await updateDoc(summaryRef, { 
+                                [typeField]: increment(data.amount), 
+                                items: arrayUnion(data) 
+                            });
+                            await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), data);
                         } else {
-                            await setDoc(summaryRef, { [typeField]: increment(data.amount) }, { merge: true });
-                            await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), data);
+                            await setDoc(summaryRef, { 
+                                [typeField]: increment(data.amount), 
+                                items: arrayUnion(data) 
+                            }, { merge: true });
+                            await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', transactionId), data);
                         }
-                        if (historyLoaded.value) loadHistory();
                         closeModal();
                     } catch (e) { console.error(e); }
                 };
@@ -419,24 +350,25 @@
                 const deleteTransaction = async (id) => {
                     if (confirm("Excluir?") && user.value) {
                         const summaryRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'summaries', currentMonthKey.value);
-                        const typeField = oldType.value === 'credit' ? 'totalCredit' : 'totalDebit';
-                        await updateDoc(summaryRef, { [typeField]: increment(-oldAmount.value) });
+                        const typeField = editingItemRaw.value.type === 'credit' ? 'totalCredit' : 'totalDebit';
+                        await updateDoc(summaryRef, { 
+                            [typeField]: increment(-editingItemRaw.value.amount), 
+                            items: arrayRemove(editingItemRaw.value) 
+                        });
                         await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id));
-                        if (historyLoaded.value) loadHistory();
                         closeModal();
                     }
                 };
 
+                // Listener que garante que o resumo sempre atualize em tempo real
                 watch([user, currentMonthKey], ([u, month]) => {
                     if (!u) return;
-                    historyLoaded.value = false;
-                    transactions.value = [];
-                    
                     onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'summaries', month), (s) => {
                         if (s.exists()) {
                             currentMonthSummary.value = s.data();
                         } else {
-                            syncSummaryFromExpenses(u, month);
+                            // Se o resumo não existe no Firebase, gera ele automaticamente
+                            syncMonth(u, month);
                         }
                     });
                 }, { immediate: true });
@@ -447,10 +379,7 @@
                         setTimeout(() => document.getElementById('splash-screen')?.classList.add('hidden'), 400);
                         if (u) {
                             onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'settings', 'config'), (s) => {
-                                if (s.exists()) {
-                                    defaultLimit.value = s.data().monthlyLimit || 2000;
-                                    monthlyLimitsMap.value = s.data().monthlyLimits || {};
-                                }
+                                if (s.exists()) { monthlyLimitsMap.value = s.data().monthlyLimits || {}; defaultLimit.value = s.data().monthlyLimit || 2000; }
                             });
                         }
                     });
@@ -458,25 +387,28 @@
 
                 const handleAmountInput = (e) => { let val = e.target.value.replace(/\D/g, ''); newTransaction.value.amount = val ? parseFloat(val) / 100 : 0; };
                 const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-                const formatDateShort = (ts) => { const d = ts?.toDate ? ts.toDate() : new Date(ts); return isNaN(d.getTime()) ? '--' : new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(d); };
+                const formatDateShort = (dStr) => { const d = new Date(dStr); return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(d); };
                 const changeMonth = (d) => { const newD = new Date(currentDate.value); newD.setMonth(newD.getMonth() + d); currentDate.value = newD; };
                 const openModal = () => { editingId.value = null; newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() }; showModal.value = true; };
-                const editTransaction = (t) => { editingId.value = t.id; oldAmount.value = t.amount; oldType.value = t.type; newTransaction.value = { ...t }; showModal.value = true; };
+                const editTransaction = (t) => { editingId.value = t.id; editingItemRaw.value = JSON.parse(JSON.stringify(t)); newTransaction.value = { ...t }; showModal.value = true; };
                 const closeModal = () => { showModal.value = false; editingId.value = null; };
-                const toggleSettings = () => { tempLimit.value = currentMonthlyLimit.value; showSettings.value = !showSettings.value; };
-                const saveLimit = async () => { await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'settings', 'config'), { monthlyLimits: { ...monthlyLimitsMap.value, [currentMonthKey.value]: parseFloat(tempLimit.value) } }, { merge: true }); showSettings.value = false; };
-                const handleLogin = async () => { isLoggingIn.value = true; try { await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value); } catch (e) { console.error(e); } finally { isLoggingIn.value = false; } };
                 const handleLogout = () => confirm('Sair?') && signOut(auth);
-                const calcAppend = (n) => calcDisplay.value = calcDisplay.value === '0' ? n : calcDisplay.value + n;
-                const calcClear = () => calcDisplay.value = '0';
-                const calcBackspace = () => calcDisplay.value = calcDisplay.value.slice(0, -1) || '0';
-                const calcCalculate = () => { try { calcDisplay.value = eval(calcDisplay.value.replace(/,/g, '.')).toString(); } catch (e) { calcDisplay.value = 'Erro'; } };
-                const useCalcResult = () => { calcCalculate(); const res = parseFloat(calcDisplay.value); if (!isNaN(res)) newTransaction.value.amount = res; showCalculator.value = false; };
+                const handleLogin = async () => { isLoggingIn.value = true; try { await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value); } catch (e) { console.error(e); } finally { isLoggingIn.value = false; } };
+                const saveLimit = async () => { await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'settings', 'config'), { monthlyLimits: { ...monthlyLimitsMap.value, [currentMonthKey.value]: parseFloat(tempLimit.value) } }, { merge: true }); showSettings.value = false; };
+                const toggleSettings = () => { tempLimit.value = currentMonthlyLimit.value; showSettings.value = !showSettings.value; };
+                const forceSync = () => user.value && syncMonth(user.value, currentMonthKey.value);
 
-                return { appReady, user, historyLoaded, loadingHistory, loadHistory, isSyncing, forceSync, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, filteredTransactions, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, toggleSettings, saveLimit, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, expectedProgress, showCalculator, calcDisplay, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult, deleteTransaction };
+                const handleCalc = (b) => {
+                    if (b === 'C') calcDisplay.value = '0';
+                    else if (b === '←') calcDisplay.value = calcDisplay.value.slice(0, -1) || '0';
+                    else if (b === '=') { try { calcDisplay.value = eval(calcDisplay.value.replace(/×/g, '*').replace(/÷/g, '/')).toString(); } catch { calcDisplay.value = 'Erro'; } }
+                    else if (b === 'OK') { handleCalc('='); const res = parseFloat(calcDisplay.value); if (!isNaN(res)) newTransaction.value.amount = res; showCalculator.value = false; }
+                    else calcDisplay.value = calcDisplay.value === '0' ? b : calcDisplay.value + b;
+                };
+
+                return { appReady, user, sortedTransactions, isSyncing, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, showCalculator, calcDisplay, handleCalc, transactions, saveLimit, toggleSettings, forceSync };
             }
         }).mount('#app');
     </script>
 </body>
 </html>
-
