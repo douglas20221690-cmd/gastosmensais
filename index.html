@@ -55,7 +55,7 @@
         <div class="bg-white/20 p-6 rounded-full mb-6">
             <img src="icon.png?v=3" alt="Logo" class="w-16 h-16 object-contain">
         </div>
-        <p class="text-white font-medium opacity-80 text-sm">Otimizando sua cota...</p>
+        <p class="text-white font-medium opacity-80 text-sm">Sincronizando dados...</p>
     </div>
 
     <div id="app" class="flex flex-col h-full relative" v-cloak>
@@ -116,9 +116,12 @@
                     </div>
                 </div>
 
-                <!-- INFO DE SALDO (USANDO SUMMARY PARA ECONOMIZAR LEITURAS) -->
+                <!-- INFO DE SALDO -->
                 <div class="animate-fade-in space-y-1">
-                    <div class="flex justify-between items-end">
+                    <div v-if="isSyncing" class="text-center py-2 bg-white/10 rounded-lg animate-pulse">
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-200">Sincronizando saldo antigo...</p>
+                    </div>
+                    <div v-else class="flex justify-between items-end">
                         <div>
                             <p class="text-emerald-100 text-[10px] uppercase font-bold tracking-wider mb-1">Saldo Livre</p>
                             <div class="text-3xl font-bold leading-none">{{ formatCurrency(remainingBudget) }}</div>
@@ -141,7 +144,7 @@
                 </div>
             </header>
 
-            <!-- LISTA (CARREGADA APENAS SOB DEMANDA) -->
+            <!-- LISTA -->
             <main class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar pb-32">
                 <div class="grid grid-cols-2 gap-3 mb-2">
                     <div class="bg-orange-50 p-3 rounded-2xl border border-orange-100 flex flex-col items-center">
@@ -158,7 +161,7 @@
                     <button @click="loadHistory" class="px-8 py-4 bg-white border border-emerald-100 text-emerald-600 font-bold rounded-2xl shadow-sm active:scale-95 flex items-center gap-2">
                         <i class="fas fa-history"></i> Ver Histórico do Mês
                     </button>
-                    <p class="text-[10px] text-gray-400 font-bold uppercase">Histórico oculto para economizar dados</p>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Histórico oculto para economia</p>
                 </div>
 
                 <div v-else>
@@ -197,7 +200,7 @@
                 <i class="fas fa-plus"></i>
             </button>
 
-            <!-- MODAIS E CALCULADORA MANTIDOS IGUAIS -->
+            <!-- MODAL LANÇAMENTO -->
             <div v-if="showModal" class="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center backdrop-blur-sm" @click.self="closeModal">
                 <div class="bg-white w-full max-w-lg p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
                     <h2 class="text-xl font-bold text-gray-800 mb-6">{{ editingId ? 'Editar Gasto' : 'Novo Gasto' }}</h2>
@@ -239,6 +242,7 @@
                 </div>
             </div>
 
+            <!-- CONFIGS -->
             <div v-if="showSettings" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-6 backdrop-blur-md" @click.self="showSettings = false">
                 <div class="bg-white w-full max-w-xs p-8 rounded-3xl shadow-2xl">
                     <h3 class="font-bold text-lg mb-2">Limite Mensal</h3>
@@ -272,9 +276,9 @@
                 const defaultLimit = ref(2000);
                 const historyLoaded = ref(false);
                 const loadingHistory = ref(false);
+                const isSyncing = ref(false);
                 const currentDate = ref(new Date());
 
-                // State para o Resumo Mensal (A chave da economia de leitura)
                 const currentMonthSummary = ref({ totalDebit: 0, totalCredit: 0 });
 
                 const loginEmail = ref('douglasrgomes@gmail.com');
@@ -284,7 +288,7 @@
                 const showSettings = ref(false);
                 const tempLimit = ref(2000);
                 const editingId = ref(null);
-                const oldAmount = ref(0); // Para ajuste no resumo ao editar
+                const oldAmount = ref(0);
                 const oldType = ref('debit');
 
                 const newTransaction = ref({ amount: 0, description: '', type: 'debit', date: new Date() });
@@ -296,17 +300,54 @@
                 const currentMonthKey = computed(() => { const m = currentDate.value.getMonth() + 1; const y = currentDate.value.getFullYear(); return `${y}-${m.toString().padStart(2, '0')}`; });
                 const currentMonthlyLimit = computed(() => monthlyLimitsMap.value[currentMonthKey.value] ?? defaultLimit.value);
                 
-                // Dashboard agora olha para o Resumo Mensal, não para a lista completa
                 const totalSpent = computed(() => currentMonthSummary.value.totalDebit + currentMonthSummary.value.totalCredit);
                 const totalDebit = computed(() => currentMonthSummary.value.totalDebit);
                 const totalCredit = computed(() => currentMonthSummary.value.totalCredit);
                 
                 const remainingBudget = computed(() => currentMonthlyLimit.value - totalSpent.value);
                 const progressPercentage = computed(() => Math.min((totalSpent.value / (currentMonthlyLimit.value || 1)) * 100, 100));
-                const expectedProgress = computed(() => { const now = new Date(); const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); return (now.getDate() / totalDays) * 100; });
+                const expectedProgress = computed(() => { 
+                    const now = new Date(); 
+                    if (now.getMonth() !== currentDate.value.getMonth() || now.getFullYear() !== currentDate.value.getFullYear()) return 100;
+                    const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); 
+                    return (now.getDate() / totalDays) * 100; 
+                });
                 const progressBarColor = computed(() => progressPercentage.value > 95 ? 'bg-red-600' : progressPercentage.value > expectedProgress.value ? 'bg-orange-500' : 'bg-emerald-300');
 
                 const filteredTransactions = computed(() => transactions.value);
+
+                // FUNÇÃO DE MIGRAÇÃO: Se o resumo não existe, calcula dos gastos salvos
+                const syncSummaryFromExpenses = async (u, monthKey) => {
+                    isSyncing.value = true;
+                    try {
+                        const targetMonth = currentDate.value.getMonth();
+                        const targetYear = currentDate.value.getFullYear();
+                        
+                        // Fazemos uma busca única de todos os gastos (isso acontece apenas uma vez por mês)
+                        const q = query(collection(db, 'artifacts', appId, 'users', u.uid, 'expenses'));
+                        const snap = await getDocs(q);
+                        
+                        let deb = 0;
+                        let cre = 0;
+                        
+                        snap.docs.forEach(d => {
+                            const data = d.data();
+                            const dDate = data.date?.toDate ? data.date.toDate() : new Date(data.date);
+                            if (dDate.getMonth() === targetMonth && dDate.getFullYear() === targetYear) {
+                                if (data.type === 'credit') cre += (data.amount || 0);
+                                else deb += (data.amount || 0);
+                            }
+                        });
+
+                        // Salva o resumo para que as próximas vezes custem apenas 1 leitura
+                        const summaryRef = doc(db, 'artifacts', appId, 'users', u.uid, 'summaries', monthKey);
+                        await setDoc(summaryRef, { totalDebit: deb, totalCredit: cre }, { merge: true });
+                    } catch (e) {
+                        console.error("Erro ao sincronizar resumo:", e);
+                    } finally {
+                        isSyncing.value = false;
+                    }
+                };
 
                 const loadHistory = async () => {
                     if (!user.value) return;
@@ -315,9 +356,8 @@
                         const q = query(
                             collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'),
                             orderBy('date', 'desc'),
-                            limit(50) 
+                            limit(60) 
                         );
-                        // Filtro de mês feito via JS para economizar índices e manter simplicidade
                         const snap = await getDocs(q);
                         const targetMonth = currentDate.value.getMonth();
                         const targetYear = currentDate.value.getFullYear();
@@ -340,7 +380,6 @@
 
                     try {
                         if (editingId.value) {
-                            // Estornar antigo e somar novo
                             const oldTypeField = oldType.value === 'credit' ? 'totalCredit' : 'totalDebit';
                             await updateDoc(summaryRef, { 
                                 [oldTypeField]: increment(-oldAmount.value),
@@ -348,11 +387,9 @@
                             });
                             await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), data);
                         } else {
-                            // Apenas somar novo
                             await setDoc(summaryRef, { [typeField]: increment(data.amount) }, { merge: true });
                             await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), data);
                         }
-                        // Forçar recarga da lista se ela estiver aberta
                         if (historyLoaded.value) loadHistory();
                         closeModal();
                     } catch (e) { console.error(e); }
@@ -369,15 +406,19 @@
                     }
                 };
 
-                // Listeners de Resumo e Config
+                // Listener Inteligente do Resumo
                 watch([user, currentMonthKey], ([u, month]) => {
                     if (!u) return;
-                    // Resetar histórico ao mudar de mês
                     historyLoaded.value = false;
                     transactions.value = [];
                     
                     onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'summaries', month), (s) => {
-                        currentMonthSummary.value = s.exists() ? s.data() : { totalDebit: 0, totalCredit: 0 };
+                        if (s.exists()) {
+                            currentMonthSummary.value = s.data();
+                        } else {
+                            // Se o resumo não existe, tenta calcular do que já tem no banco
+                            syncSummaryFromExpenses(u, month);
+                        }
                     });
                 }, { immediate: true });
 
@@ -396,7 +437,6 @@
                     });
                 });
 
-                // Helpers de UI
                 const handleAmountInput = (e) => { let val = e.target.value.replace(/\D/g, ''); newTransaction.value.amount = val ? parseFloat(val) / 100 : 0; };
                 const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
                 const formatDateShort = (ts) => { const d = ts?.toDate ? ts.toDate() : new Date(ts); return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(d); };
@@ -414,7 +454,7 @@
                 const calcCalculate = () => { try { calcDisplay.value = eval(calcDisplay.value.replace(/,/g, '.')).toString(); } catch (e) { calcDisplay.value = 'Erro'; } };
                 const useCalcResult = () => { calcCalculate(); const res = parseFloat(calcDisplay.value); if (!isNaN(res)) newTransaction.value.amount = res; showCalculator.value = false; };
 
-                return { appReady, user, historyLoaded, loadingHistory, loadHistory, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, filteredTransactions, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, toggleSettings, saveLimit, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, expectedProgress, showCalculator, calcDisplay, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult, deleteTransaction };
+                return { appReady, user, historyLoaded, loadingHistory, loadHistory, isSyncing, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, filteredTransactions, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, toggleSettings, saveLimit, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, expectedProgress, showCalculator, calcDisplay, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult, deleteTransaction };
             }
         }).mount('#app');
     </script>
