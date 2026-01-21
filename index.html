@@ -86,7 +86,6 @@
                     </div>
                 </div>
 
-                <!-- SELETOR DE MÊS -->
                 <div class="flex items-center justify-between bg-emerald-700/40 rounded-xl p-1 mb-3">
                     <button @click="changeMonth(-1)" class="w-9 h-9 flex items-center justify-center"><i class="fas fa-chevron-left text-xs"></i></button>
                     <span class="font-bold text-sm capitalize">{{ currentMonthDisplay }}</span>
@@ -124,14 +123,12 @@
             <div class="px-4 pt-4 shrink-0">
                 <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm space-y-2">
                     <div class="flex gap-2 items-center">
-                        <!-- min-w-0 para evitar que o input empurre os botões para fora -->
                         <input type="tel" inputmode="numeric" :value="formattedAmountDisplay" @input="handleAmountInput" 
                                class="flex-1 min-w-0 px-4 py-3 bg-gray-50 rounded-xl font-bold text-gray-800 outline-none placeholder:text-gray-300" 
                                placeholder="0,00">
-                        <!-- Ajuste de layout para os botões não ficarem na borda -->
-                        <div class="flex bg-gray-50 rounded-xl p-1 gap-1 h-[52px] items-center shrink-0 mr-1">
-                            <button @click="newTransaction.type = 'debit'" class="px-3 h-full rounded-lg text-[10px] font-black uppercase" :class="newTransaction.type === 'debit' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-300'">Déb</button>
-                            <button @click="newTransaction.type = 'credit'" class="px-3 h-full rounded-lg text-[10px] font-black uppercase" :class="newTransaction.type === 'credit' ? 'bg-indigo-500 text-white shadow-md' : 'text-gray-300'">Cré</button>
+                        <div class="flex bg-gray-50 rounded-xl p-1 gap-1 h-[52px] items-center shrink-0 mr-1.5">
+                            <button @click="newTransaction.type = 'debit'" class="px-3.5 h-full rounded-lg text-[10px] font-black uppercase" :class="newTransaction.type === 'debit' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-300'">Déb</button>
+                            <button @click="newTransaction.type = 'credit'" class="px-3.5 h-full rounded-lg text-[10px] font-black uppercase" :class="newTransaction.type === 'credit' ? 'bg-indigo-500 text-white shadow-md' : 'text-gray-300'">Cré</button>
                         </div>
                     </div>
                     <div class="flex gap-2">
@@ -186,7 +183,7 @@
                         </div>
                         <input type="text" v-model="newTransaction.description" class="w-full p-4 bg-gray-50 rounded-2xl outline-none text-base font-semibold" placeholder="Descrição">
                         <button @click="saveTransaction" class="w-full bg-emerald-600 text-white py-5 rounded-2xl font-bold text-lg shadow-lg">Confirmar</button>
-                        <button v-if="editingId" @click="deleteTransaction(editingId)" class="w-full text-red-500 text-xs font-black py-2 uppercase">Excluir Permanente</button>
+                        <button v-if="editingId" @click="handleDeleteRequest" class="w-full text-red-500 text-xs font-black py-4 mt-2 uppercase border-2 border-red-50 rounded-2xl tracking-widest active:bg-red-50">Excluir Permanente</button>
                     </div>
                 </div>
             </div>
@@ -222,7 +219,6 @@
                             <i class="fas fa-sync-alt" :class="{'animate-spin': isSyncing}"></i>
                             {{ isSyncing ? 'Sincronizando...' : 'Recalcular Saldo do Mês' }}
                         </button>
-                        <p class="text-[9px] text-gray-400 mt-2 text-center leading-tight">Use apenas se o valor total estiver incorreto ou se quiser atualizar o resumo deste mês.</p>
                     </div>
                 </div>
             </div>
@@ -233,7 +229,7 @@
         const { createApp, ref, computed, onMounted, watch } = Vue;
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, increment, getDoc, getDocs, query, onSnapshot, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, getDoc, getDocs, query, onSnapshot, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = { apiKey: "AIzaSyBynG1L1voQ-GJnjwv7KeKV6p64eDxD8KY", authDomain: "gastosmensais-3d721.firebaseapp.com", projectId: "gastosmensais-3d721", storageBucket: "gastosmensais-3d721.firebasestorage.app", messagingSenderId: "564092336226", appId: "1:564092336226:web:8d68fb169fc09dce84793b" };
         const fbApp = initializeApp(firebaseConfig);
@@ -307,79 +303,80 @@
                     
                     const transactionId = editingId.value || doc(collection(db, 'temp')).id;
                     const dateObj = newTransaction.value.date instanceof Date ? newTransaction.value.date : new Date(newTransaction.value.date);
-                    const data = { id: transactionId, amount: newTransaction.value.amount, description: newTransaction.value.description || 'Gasto', type: newTransaction.value.type, date: dateObj.toISOString() };
+                    const data = { 
+                        id: transactionId, 
+                        amount: parseFloat(newTransaction.value.amount), 
+                        description: newTransaction.value.description || 'Gasto', 
+                        type: newTransaction.value.type, 
+                        date: dateObj.toISOString() 
+                    };
                     
                     const summaryRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'summaries', currentMonthKey.value);
 
                     try {
                         const summarySnap = await getDoc(summaryRef);
-                        if (summarySnap.exists()) {
-                            const sData = summarySnap.data();
-                            let items = sData.items || [];
-                            let totalDeb = sData.totalDebit || 0;
-                            let totalCre = sData.totalCredit || 0;
+                        let sData = summarySnap.exists() ? summarySnap.data() : { totalDebit: 0, totalCredit: 0, items: [] };
+                        let items = sData.items || [];
+                        let totalDeb = sData.totalDebit || 0;
+                        let totalCre = sData.totalCredit || 0;
 
-                            if (editingId.value) {
-                                // Se for edição, remove o valor antigo dos totais
-                                const oldItem = items.find(i => i.id === editingId.value);
-                                if (oldItem) {
-                                    if (oldItem.type === 'credit') totalCre -= oldItem.amount;
-                                    else totalDeb -= oldItem.amount;
-                                    // Remove o item antigo do array
-                                    items = items.filter(i => i.id !== editingId.value);
-                                }
+                        if (editingId.value) {
+                            const oldItemIndex = items.findIndex(i => i.id === editingId.value);
+                            if (oldItemIndex !== -1) {
+                                const oldItem = items[oldItemIndex];
+                                if (oldItem.type === 'credit') totalCre -= oldItem.amount;
+                                else totalDeb -= oldItem.amount;
+                                items.splice(oldItemIndex, 1);
                             }
-
-                            // Adiciona o novo valor e o novo item
-                            if (data.type === 'credit') totalCre += data.amount;
-                            else totalDeb += data.amount;
-                            items.push(data);
-
-                            await setDoc(summaryRef, { 
-                                totalDebit: totalDeb, 
-                                totalCredit: totalCre, 
-                                items: items 
-                            }, { merge: true });
                         }
 
-                        // Salva na coleção de backup
+                        if (data.type === 'credit') totalCre += data.amount;
+                        else totalDeb += data.amount;
+                        items.push(data);
+
+                        await setDoc(summaryRef, { totalDebit: totalDeb, totalCredit: totalCre, items: items }, { merge: true });
                         await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', transactionId), data);
                         closeModal();
                     } catch (e) { console.error(e); }
                 };
 
+                const handleDeleteRequest = () => {
+                    if (editingId.value) deleteTransaction(editingId.value);
+                };
+
                 const deleteTransaction = async (id) => {
-                    if (confirm("Excluir definitivamente?") && user.value) {
-                        try {
-                            const summaryRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'summaries', currentMonthKey.value);
-                            const summarySnap = await getDoc(summaryRef);
-                            
-                            if (summarySnap.exists()) {
-                                const sData = summarySnap.data();
-                                let items = sData.items || [];
-                                const itemToDelete = items.find(i => i.id === id);
+                    if (!confirm("Excluir permanentemente?") || !user.value) return;
+                    
+                    try {
+                        const summaryRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'summaries', currentMonthKey.value);
+                        const summarySnap = await getDoc(summaryRef);
+                        
+                        if (summarySnap.exists()) {
+                            const sData = summarySnap.data();
+                            let items = sData.items || [];
+                            const itemIndex = items.findIndex(i => i.id === id);
 
-                                if (itemToDelete) {
-                                    let totalDeb = sData.totalDebit || 0;
-                                    let totalCre = sData.totalCredit || 0;
+                            if (itemIndex !== -1) {
+                                const itemToDelete = items[itemIndex];
+                                let totalDeb = sData.totalDebit || 0;
+                                let totalCre = sData.totalCredit || 0;
 
-                                    if (itemToDelete.type === 'credit') totalCre -= itemToDelete.amount;
-                                    else totalDeb -= itemToDelete.amount;
+                                if (itemToDelete.type === 'credit') totalCre -= itemToDelete.amount;
+                                else totalDeb -= itemToDelete.amount;
 
-                                    items = items.filter(i => i.id !== id);
+                                items.splice(itemIndex, 1);
 
-                                    await setDoc(summaryRef, { 
-                                        totalDebit: totalDeb, 
-                                        totalCredit: totalCre, 
-                                        items: items 
-                                    }, { merge: true });
-                                }
+                                await setDoc(summaryRef, { 
+                                    totalDebit: totalDeb, 
+                                    totalCredit: totalCre, 
+                                    items: items 
+                                }, { merge: true });
                             }
+                        }
 
-                            await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id));
-                            closeModal();
-                        } catch (e) { console.error(e); }
-                    }
+                        await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id));
+                        closeModal();
+                    } catch (e) { console.error("Erro na exclusão:", e); }
                 };
 
                 watch([user, currentMonthKey], ([u, month]) => {
@@ -423,7 +420,7 @@
                     else calcDisplay.value = calcDisplay.value === '0' ? b : calcDisplay.value + b;
                 };
 
-                return { appReady, user, sortedTransactions, isSyncing, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, showCalculator, calcDisplay, handleCalc, transactions, saveLimit, toggleSettings, forceSync };
+                return { appReady, user, sortedTransactions, isSyncing, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, showCalculator, calcDisplay, handleCalc, transactions, saveLimit, toggleSettings, forceSync, handleDeleteRequest };
             }
         }).mount('#app');
     </script>
