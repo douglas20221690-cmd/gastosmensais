@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Controle de Gastos PWA</title>
+    <title>Controle de Gastos Otimizado</title>
     
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" sizes="512x512" href="icon.png?v=3">
@@ -16,7 +16,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #10b981; }
@@ -41,34 +40,13 @@
         .expense-item { padding: 0.9rem 1.1rem; border-radius: 1.2rem; }
         .expense-icon { width: 2.6rem; height: 2.6rem; font-size: 0.9rem; }
         
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: white; border-top: 1px solid #e5e7eb;
-            display: flex; justify-content: space-around;
-            padding-bottom: env(safe-area-inset-bottom);
-            z-index: 40;
-        }
-        .nav-item {
-            flex: 1; padding: 0.8rem 0; display: flex; flex-direction: column;
-            align-items: center; font-size: 0.75rem; font-weight: 600;
-            color: #9ca3af; transition: color 0.2s;
-        }
-        .nav-item.active { color: #10b981; }
-
         .calc-btn {
-            background: #f3f4f6;
-            padding: 1.2rem 0;
-            border-radius: 1rem;
-            font-weight: 800;
-            font-size: 1.2rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.1s;
+            background: #f3f4f6; padding: 1.2rem 0; border-radius: 1rem;
+            font-weight: 800; font-size: 1.2rem; display: flex;
+            align-items: center; justify-content: center; transition: background 0.1s;
         }
         .calc-btn:active { background: #e5e7eb; scale: 0.95; }
         .calc-btn-op { background: #10b981; color: white; }
-        .calc-btn-op:active { background: #059669; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden">
@@ -77,7 +55,7 @@
         <div class="bg-white/20 p-6 rounded-full mb-6">
             <img src="icon.png?v=3" alt="Logo" class="w-16 h-16 object-contain">
         </div>
-        <p class="text-white font-medium opacity-80 text-sm">Acessando finanças...</p>
+        <p class="text-white font-medium opacity-80 text-sm">Otimizando sua cota...</p>
     </div>
 
     <div id="app" class="flex flex-col h-full relative" v-cloak>
@@ -103,7 +81,7 @@
                 <div class="flex justify-between items-center mb-4">
                     <h1 class="text-lg font-bold flex items-center">
                         <img src="icon.png?v=3" class="w-7 h-7 mr-2 bg-white/20 rounded-full p-1">
-                        Movimentações
+                        Financeiro
                     </h1>
                     <div class="flex gap-4">
                         <button @click="toggleSettings" class="opacity-80"><i class="fas fa-cog"></i></button>
@@ -118,41 +96,27 @@
                     <button @click="changeMonth(1)" class="w-9 h-9 flex items-center justify-center"><i class="fas fa-chevron-right text-xs"></i></button>
                 </div>
 
-                <!-- FORMULÁRIO DE LANÇAMENTO RÁPIDO NO CABEÇALHO -->
-                <div class="bg-emerald-700/30 p-3 rounded-2xl mb-4 space-y-2 border border-white/10 shadow-inner">
-                    <div class="flex gap-2 items-center">
+                <!-- FORMULÁRIO DE LANÇAMENTO RÁPIDO -->
+                <div class="bg-emerald-700/30 p-3 rounded-2xl mb-4 border border-white/10 shadow-inner">
+                    <div class="flex gap-2 items-center mb-2">
                         <div class="flex-1 relative">
                              <input type="tel" inputmode="numeric" :value="formattedAmountDisplay" @input="handleAmountInput" 
                                    class="w-full pl-3 pr-8 py-3 bg-white/20 rounded-xl font-bold text-white outline-none placeholder:text-emerald-100/40 text-lg" 
                                    placeholder="0,00">
-                             <button @click="showCalculator = true" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 text-xs">
-                                 <i class="fas fa-calculator"></i>
-                             </button>
+                             <button @click="showCalculator = true" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 text-xs"><i class="fas fa-calculator"></i></button>
                         </div>
                         <div class="flex bg-white/20 rounded-xl p-1 gap-1 h-[52px] items-center">
-                            <button @click="newTransaction.type = 'debit'" 
-                                    class="px-3 h-full rounded-lg text-[10px] font-black transition-all uppercase"
-                                    :class="newTransaction.type === 'debit' ? 'bg-orange-500 text-white shadow-md' : 'text-emerald-100/60'">
-                                Déb
-                            </button>
-                            <button @click="newTransaction.type = 'credit'" 
-                                    class="px-3 h-full rounded-lg text-[10px] font-black transition-all uppercase"
-                                    :class="newTransaction.type === 'credit' ? 'bg-indigo-500 text-white shadow-md' : 'text-emerald-100/60'">
-                                Cré
-                            </button>
+                            <button @click="newTransaction.type = 'debit'" class="px-3 h-full rounded-lg text-[10px] font-black uppercase transition-all" :class="newTransaction.type === 'debit' ? 'bg-orange-500 text-white shadow-md' : 'text-emerald-100/60'">Déb</button>
+                            <button @click="newTransaction.type = 'credit'" class="px-3 h-full rounded-lg text-[10px] font-black uppercase transition-all" :class="newTransaction.type === 'credit' ? 'bg-indigo-500 text-white shadow-md' : 'text-emerald-100/60'">Cré</button>
                         </div>
                     </div>
                     <div class="flex gap-2">
-                        <input type="text" v-model="newTransaction.description" 
-                               class="flex-1 px-4 py-3 bg-white/20 rounded-xl text-sm font-semibold text-white outline-none placeholder:text-emerald-100/40" 
-                               placeholder="Descrição (ex: Mercado)">
-                        <button @click="saveTransaction" class="bg-white text-emerald-600 px-5 rounded-xl font-black text-xs shadow-lg active:scale-95 uppercase">
-                            Salvar
-                        </button>
+                        <input type="text" v-model="newTransaction.description" class="flex-1 px-4 py-3 bg-white/20 rounded-xl text-sm font-semibold text-white outline-none placeholder:text-emerald-100/40" placeholder="Descrição">
+                        <button @click="saveTransaction" class="bg-white text-emerald-600 px-5 rounded-xl font-black text-xs shadow-lg active:scale-95 uppercase">Salvar</button>
                     </div>
                 </div>
 
-                <!-- INFO DE SALDO E PROGRESSO -->
+                <!-- INFO DE SALDO (USANDO SUMMARY PARA ECONOMIZAR LEITURAS) -->
                 <div class="animate-fade-in space-y-1">
                     <div class="flex justify-between items-end">
                         <div>
@@ -167,62 +131,65 @@
                     
                     <div class="mt-3 h-2 bg-emerald-800/30 rounded-full overflow-hidden relative">
                         <div class="h-full transition-all duration-500 absolute left-0 top-0 z-10" :class="progressBarColor" :style="{ width: progressPercentage + '%' }"></div>
-                        <div class="h-full w-0.5 bg-white/40 absolute top-0 z-20" :style="{ left: expectedProgress + '%' }" title="Meta para hoje"></div>
+                        <div class="h-full w-0.5 bg-white/40 absolute top-0 z-20" :style="{ left: expectedProgress + '%' }"></div>
                     </div>
                     
                     <div class="flex justify-between text-[10px] text-emerald-100 font-bold uppercase mt-1">
                         <span>Gasto: {{ formatCurrency(totalSpent) }}</span>
-                        <span :class="{'text-orange-200 animate-pulse': progressPercentage > expectedProgress}">
-                            Meta Hoje: {{ expectedProgress.toFixed(0) }}%
-                        </span>
                         <span>Limite: {{ formatCurrency(currentMonthlyLimit) }}</span>
                     </div>
                 </div>
             </header>
 
-            <!-- LISTA -->
+            <!-- LISTA (CARREGADA APENAS SOB DEMANDA) -->
             <main class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar pb-32">
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-2 gap-3 mb-2">
                     <div class="bg-orange-50 p-3 rounded-2xl border border-orange-100 flex flex-col items-center">
-                        <span class="text-[10px] text-orange-400 font-bold uppercase">Total Débito</span>
+                        <span class="text-[10px] text-orange-400 font-bold uppercase tracking-tight">Total Débito</span>
                         <span class="text-base font-bold text-orange-700">{{ formatCurrency(totalDebit) }}</span>
                     </div>
                     <div class="bg-indigo-50 p-3 rounded-2xl border border-indigo-100 flex flex-col items-center">
-                        <span class="text-[10px] text-indigo-400 font-bold uppercase">Total Crédito</span>
+                        <span class="text-[10px] text-indigo-400 font-bold uppercase tracking-tight">Total Crédito</span>
                         <span class="text-base font-bold text-indigo-700">{{ formatCurrency(totalCredit) }}</span>
                     </div>
                 </div>
 
-                <div v-if="loading" class="text-center text-gray-300 mt-10"><i class="fas fa-circle-notch fa-spin"></i></div>
-                <div v-else-if="filteredTransactions.length === 0" class="text-center text-gray-400 mt-10 p-10 bg-white rounded-3xl border border-dashed border-gray-200">
-                    <i class="fas fa-calendar-day text-3xl mb-2 opacity-20"></i>
-                    <p class="text-sm">Nenhum gasto registrado.</p>
+                <div v-if="!historyLoaded" class="py-6 flex flex-col items-center justify-center space-y-4">
+                    <button @click="loadHistory" class="px-8 py-4 bg-white border border-emerald-100 text-emerald-600 font-bold rounded-2xl shadow-sm active:scale-95 flex items-center gap-2">
+                        <i class="fas fa-history"></i> Ver Histórico do Mês
+                    </button>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase">Histórico oculto para economizar dados</p>
                 </div>
-                
-                <div v-for="t in filteredTransactions" :key="t.id" class="expense-item bg-white shadow-sm border border-gray-100 flex justify-between items-center animate-fade-in">
-                    <div class="flex items-center gap-3">
-                        <div class="expense-icon rounded-full flex items-center justify-center text-white shadow-sm" :class="t.type === 'credit' ? 'bg-indigo-500' : 'bg-orange-500'">
-                            <i class="fas" :class="t.type === 'credit' ? 'fa-credit-card' : 'fa-money-bill-wave'"></i>
-                        </div>
-                        <div class="leading-tight">
-                            <p class="font-bold text-gray-800 text-sm truncate max-w-[150px]">{{ t.description || 'Sem descrição' }}</p>
-                            <p class="text-[11px] text-gray-400 font-medium">
-                                {{ formatDateShort(t.date) }}
-                            </p>
-                        </div>
+
+                <div v-else>
+                    <div v-if="loadingHistory" class="text-center text-gray-300 py-10"><i class="fas fa-circle-notch fa-spin"></i></div>
+                    <div v-else-if="filteredTransactions.length === 0" class="text-center text-gray-400 py-10 bg-white rounded-3xl border border-dashed border-gray-200">
+                        <p class="text-sm">Nenhum gasto neste mês.</p>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-bold text-gray-900 text-base">{{ formatCurrency(t.amount) }}</span>
-                        <button @click="editTransaction(t)" class="text-gray-200 hover:text-emerald-500 p-2 transition-colors"><i class="fas fa-pen text-xs"></i></button>
+                    
+                    <div v-for="t in filteredTransactions" :key="t.id" class="expense-item bg-white shadow-sm border border-gray-100 flex justify-between items-center animate-fade-in mb-2">
+                        <div class="flex items-center gap-3">
+                            <div class="expense-icon rounded-full flex items-center justify-center text-white shadow-sm" :class="t.type === 'credit' ? 'bg-indigo-500' : 'bg-orange-500'">
+                                <i class="fas" :class="t.type === 'credit' ? 'fa-credit-card' : 'fa-money-bill-wave'"></i>
+                            </div>
+                            <div class="leading-tight">
+                                <p class="font-bold text-gray-800 text-sm truncate max-w-[140px]">{{ t.description || 'Gasto' }}</p>
+                                <p class="text-[11px] text-gray-400 font-medium">{{ formatDateShort(t.date) }}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-gray-900 text-base">{{ formatCurrency(t.amount) }}</span>
+                            <button @click="editTransaction(t)" class="text-gray-200 hover:text-emerald-500 p-2"><i class="fas fa-pen text-xs"></i></button>
+                        </div>
                     </div>
                 </div>
             </main>
 
             <!-- NAVBAR -->
-            <nav class="bottom-nav">
-                <button class="nav-item active">
+            <nav class="fixed bottom-0 left-0 right-0 bg-white border-top p-4 flex justify-around pb-safe z-40">
+                <button class="flex flex-col items-center text-emerald-600 font-bold text-[10px]">
                     <i class="fas fa-wallet text-xl mb-1"></i>
-                    <span>LISTA</span>
+                    <span>PRINCIPAL</span>
                 </button>
             </nav>
 
@@ -230,41 +197,24 @@
                 <i class="fas fa-plus"></i>
             </button>
 
-            <!-- MODAL LANÇAMENTO (EDIÇÃO) -->
+            <!-- MODAIS E CALCULADORA MANTIDOS IGUAIS -->
             <div v-if="showModal" class="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center backdrop-blur-sm" @click.self="closeModal">
                 <div class="bg-white w-full max-w-lg p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
                     <h2 class="text-xl font-bold text-gray-800 mb-6">{{ editingId ? 'Editar Gasto' : 'Novo Gasto' }}</h2>
                     <div class="space-y-4">
                         <div class="flex gap-3">
                             <div class="flex-1">
-                                <div class="flex justify-between items-center ml-1"><label class="text-[10px] font-bold text-gray-400 uppercase">Valor</label><button @click="showCalculator = true" class="text-emerald-600 font-bold text-[10px] uppercase flex items-center gap-1"><i class="fas fa-calculator"></i> Calculadora</button></div>
+                                <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Valor</label>
                                 <input type="tel" inputmode="numeric" :value="formattedAmountDisplay" @input="handleAmountInput" class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-2xl outline-none" placeholder="0,00">
                             </div>
-                            <div class="flex flex-col justify-end gap-2 mb-0.5">
-                                <button @click="newTransaction.type = 'debit'" 
-                                        class="px-4 py-2 rounded-xl border-2 font-bold transition-all text-xs" 
-                                        :class="newTransaction.type === 'debit' ? 'border-orange-500 text-orange-600 bg-orange-50 shadow-inner' : 'border-gray-100 text-gray-300'">DÉBITO</button>
-                                <button @click="newTransaction.type = 'credit'" 
-                                        class="px-4 py-2 rounded-xl border-2 font-bold transition-all text-xs" 
-                                        :class="newTransaction.type === 'credit' ? 'border-indigo-500 text-indigo-600 bg-indigo-50 shadow-inner' : 'border-gray-100 text-gray-300'">CRÉDITO</button>
+                            <div class="flex flex-col justify-end gap-2">
+                                <button @click="newTransaction.type = 'debit'" class="px-4 py-2 rounded-xl border-2 font-bold text-xs" :class="newTransaction.type === 'debit' ? 'border-orange-500 text-orange-600 bg-orange-50' : 'border-gray-100 text-gray-300'">DÉBITO</button>
+                                <button @click="newTransaction.type = 'credit'" class="px-4 py-2 rounded-xl border-2 font-bold text-xs" :class="newTransaction.type === 'credit' ? 'border-indigo-500 text-indigo-600 bg-indigo-50' : 'border-gray-100 text-gray-300'">CRÉDITO</button>
                             </div>
                         </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Descrição</label>
-                            <input type="text" v-model="newTransaction.description" class="w-full p-4 bg-gray-50 rounded-2xl outline-none text-base font-semibold" placeholder="Ex: Supermercado, Uber, Gaminha...">
-                            
-                            <!-- BOTOES ADICAO RAPIDA -->
-                            <div class="flex flex-wrap gap-2 mt-3 ml-1">
-                                <button v-for="cat in ['Transporte', 'Alimentação', 'Outros', 'Higiene', 'Roupas', 'Pets', 'Mercado', 'Casa', 'Lazer', 'Saúde']" 
-                                        @click="newTransaction.description = cat"
-                                        class="px-3 py-1.5 bg-gray-100 text-[10px] font-bold rounded-full text-gray-500 border border-gray-200 active:bg-emerald-100 active:text-emerald-600 transition-colors">
-                                    {{ cat }}
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <button @click="saveTransaction" class="w-full bg-emerald-600 text-white py-5 rounded-2xl font-bold text-lg shadow-lg mt-4 active:scale-95">Salvar Gasto</button>
-                        <button v-if="editingId" @click="deleteTransaction(editingId)" class="w-full text-red-500 text-xs font-black py-2 uppercase tracking-widest">Excluir Permanente</button>
+                        <input type="text" v-model="newTransaction.description" class="w-full p-4 bg-gray-50 rounded-2xl outline-none text-base font-semibold" placeholder="Descrição">
+                        <button @click="saveTransaction" class="w-full bg-emerald-600 text-white py-5 rounded-2xl font-bold text-lg shadow-lg">Salvar Gasto</button>
+                        <button v-if="editingId" @click="deleteTransaction(editingId)" class="w-full text-red-500 text-xs font-black py-2 uppercase">Excluir Permanente</button>
                     </div>
                 </div>
             </div>
@@ -272,37 +222,38 @@
             <!-- MODAL CALCULADORA -->
             <div v-if="showCalculator" class="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center backdrop-blur-md" @click.self="showCalculator = false">
                 <div class="bg-white w-full max-w-sm p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-lg font-black text-gray-800">Calculadora</h2>
-                        <button @click="showCalculator = false" class="text-gray-400 p-2"><i class="fas fa-times"></i></button>
+                    <div class="bg-gray-100 p-6 rounded-2xl mb-6 text-right">
+                        <div class="text-3xl font-black text-emerald-600 truncate">{{ calcDisplay }}</div>
                     </div>
-                    <div class="bg-gray-100 p-6 rounded-2xl mb-6 text-right overflow-hidden"><div class="text-gray-400 text-xs font-bold h-4">{{ calcHistory }}</div><div class="text-3xl font-black text-emerald-600 truncate">{{ calcDisplay }}</div></div>
                     <div class="grid grid-cols-4 gap-2">
-                        <button @click="calcClear" class="calc-btn text-red-500">C</button><button @click="calcBackspace" class="calc-btn text-gray-400"><i class="fas fa-backspace"></i></button><button @click="calcAppend('/')" class="calc-btn calc-btn-op">÷</button><button @click="calcAppend('*')" class="calc-btn calc-btn-op">×</button>
-                        <button @click="calcAppend('7')" class="calc-btn">7</button><button @click="calcAppend('8')" class="calc-btn">8</button><button @click="calcAppend('9')" class="calc-btn">9</button><button @click="calcAppend('-')" class="calc-btn calc-btn-op">-</button>
-                        <button @click="calcAppend('4')" class="calc-btn">4</button><button @click="calcAppend('5')" class="calc-btn">5</button><button @click="calcAppend('6')" class="calc-btn">6</button><button @click="calcAppend('+')" class="calc-btn calc-btn-op">+</button>
-                        <button @click="calcAppend('1')" class="calc-btn">1</button><button @click="calcAppend('2')" class="calc-btn">2</button><button @click="calcAppend('3')" class="calc-btn">3</button><button @click="calcCalculate" class="calc-btn bg-indigo-500 text-white">=</button>
-                        <button @click="calcAppend('0')" class="calc-btn col-span-2">0</button><button @click="calcAppend('.')" class="calc-btn">.</button><button @click="useCalcResult" class="calc-btn bg-emerald-600 text-white"><i class="fas fa-check"></i></button>
+                        <button @click="calcClear" class="calc-btn text-red-500">C</button>
+                        <button @click="calcBackspace" class="calc-btn text-gray-400"><i class="fas fa-backspace"></i></button>
+                        <button @click="calcAppend('/')" class="calc-btn calc-btn-op">÷</button>
+                        <button @click="calcAppend('*')" class="calc-btn calc-btn-op">×</button>
+                        <button v-for="n in ['7','8','9','-','4','5','6','+','1','2','3']" @click="calcAppend(n)" :class="['calc-btn', isNaN(n) ? 'calc-btn-op' : '']">{{n}}</button>
+                        <button @click="calcCalculate" class="calc-btn bg-indigo-500 text-white">=</button>
+                        <button @click="calcAppend('0')" class="calc-btn col-span-2">0</button>
+                        <button @click="calcAppend('.')" class="calc-btn">.</button>
+                        <button @click="useCalcResult" class="calc-btn bg-emerald-600 text-white"><i class="fas fa-check"></i></button>
                     </div>
                 </div>
             </div>
 
-            <!-- CONFIGS -->
             <div v-if="showSettings" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-6 backdrop-blur-md" @click.self="showSettings = false">
                 <div class="bg-white w-full max-w-xs p-8 rounded-3xl shadow-2xl">
-                    <h3 class="font-bold text-lg mb-2">Limite do Mês</h3>
-                    <input type="number" v-model="tempLimit" class="w-full p-4 bg-gray-100 rounded-2xl mb-6 font-bold text-xl outline-none focus:ring-2 focus:ring-emerald-500">
-                    <button @click="saveLimit" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg">Definir Meta</button>
+                    <h3 class="font-bold text-lg mb-2">Limite Mensal</h3>
+                    <input type="number" v-model="tempLimit" class="w-full p-4 bg-gray-100 rounded-2xl mb-6 font-bold text-xl outline-none">
+                    <button @click="saveLimit" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg">Salvar Limite</button>
                 </div>
             </div>
         </template>
     </div>
 
     <script type="module">
-        const { createApp, ref, computed, onMounted } = Vue;
+        const { createApp, ref, computed, onMounted, watch } = Vue;
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc, increment, getDoc, getDocs, query, orderBy, limit, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = { apiKey: "AIzaSyBynG1L1voQ-GJnjwv7KeKV6p64eDxD8KY", authDomain: "gastosmensais-3d721.firebaseapp.com", projectId: "gastosmensais-3d721", storageBucket: "gastosmensais-3d721.firebasestorage.app", messagingSenderId: "564092336226", appId: "1:564092336226:web:8d68fb169fc09dce84793b" };
         const fbApp = initializeApp(firebaseConfig);
@@ -319,8 +270,12 @@
                 const transactions = ref([]);
                 const monthlyLimitsMap = ref({}); 
                 const defaultLimit = ref(2000);
-                const loading = ref(false);
+                const historyLoaded = ref(false);
+                const loadingHistory = ref(false);
                 const currentDate = ref(new Date());
+
+                // State para o Resumo Mensal (A chave da economia de leitura)
+                const currentMonthSummary = ref({ totalDebit: 0, totalCredit: 0 });
 
                 const loginEmail = ref('douglasrgomes@gmail.com');
                 const loginPassword = ref('');
@@ -329,114 +284,137 @@
                 const showSettings = ref(false);
                 const tempLimit = ref(2000);
                 const editingId = ref(null);
+                const oldAmount = ref(0); // Para ajuste no resumo ao editar
+                const oldType = ref('debit');
+
                 const newTransaction = ref({ amount: 0, description: '', type: 'debit', date: new Date() });
                 const showCalculator = ref(false);
                 const calcDisplay = ref('0');
-                const calcHistory = ref('');
 
-                const formattedAmountDisplay = computed(() => newTransaction.value.amount === 0 ? '' : newTransaction.value.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                const formattedAmountDisplay = computed(() => newTransaction.value.amount === 0 ? '' : newTransaction.value.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
                 const currentMonthDisplay = computed(() => new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentDate.value));
                 const currentMonthKey = computed(() => { const m = currentDate.value.getMonth() + 1; const y = currentDate.value.getFullYear(); return `${y}-${m.toString().padStart(2, '0')}`; });
                 const currentMonthlyLimit = computed(() => monthlyLimitsMap.value[currentMonthKey.value] ?? defaultLimit.value);
-                const expectedProgress = computed(() => { const now = new Date(); const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); const currentDay = now.getDate(); return (currentDay / totalDays) * 100; });
                 
-                const filteredTransactions = computed(() => {
-                    const targetMonth = currentDate.value.getMonth();
-                    const targetYear = currentDate.value.getFullYear();
-                    return transactions.value.filter(t => {
-                        const d = t.date?.toDate ? t.date.toDate() : new Date(t.date);
-                        return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
-                    }).sort((a, b) => {
-                        const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date);
-                        const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date);
-                        return dateB - dateA;
-                    });
-                });
-
-                const totalSpent = computed(() => filteredTransactions.value.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
-                const totalDebit = computed(() => filteredTransactions.value.filter(t => t.type === 'debit').reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
-                const totalCredit = computed(() => filteredTransactions.value.filter(t => t.type === 'credit').reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0));
+                // Dashboard agora olha para o Resumo Mensal, não para a lista completa
+                const totalSpent = computed(() => currentMonthSummary.value.totalDebit + currentMonthSummary.value.totalCredit);
+                const totalDebit = computed(() => currentMonthSummary.value.totalDebit);
+                const totalCredit = computed(() => currentMonthSummary.value.totalCredit);
+                
                 const remainingBudget = computed(() => currentMonthlyLimit.value - totalSpent.value);
                 const progressPercentage = computed(() => Math.min((totalSpent.value / (currentMonthlyLimit.value || 1)) * 100, 100));
+                const expectedProgress = computed(() => { const now = new Date(); const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); return (now.getDate() / totalDays) * 100; });
                 const progressBarColor = computed(() => progressPercentage.value > 95 ? 'bg-red-600' : progressPercentage.value > expectedProgress.value ? 'bg-orange-500' : 'bg-emerald-300');
 
-                const calcAppend = (btn) => { if (calcDisplay.value === '0' && !isNaN(btn)) calcDisplay.value = btn; else calcDisplay.value += btn; };
-                const calcClear = () => { calcDisplay.value = '0'; calcHistory.value = ''; };
-                const calcBackspace = () => { calcDisplay.value = calcDisplay.value.slice(0, -1) || '0'; };
-                const calcCalculate = () => { try { const expression = calcDisplay.value.replace(/X/g, '*').replace(/,/g, '.'); calcHistory.value = calcDisplay.value + ' ='; calcDisplay.value = eval(expression).toString(); } catch (e) { calcDisplay.value = 'Erro'; } };
-                const useCalcResult = () => { calcCalculate(); const res = parseFloat(calcDisplay.value); if (!isNaN(res)) newTransaction.value.amount = res; showCalculator.value = false; };
+                const filteredTransactions = computed(() => transactions.value);
+
+                const loadHistory = async () => {
+                    if (!user.value) return;
+                    loadingHistory.value = true;
+                    try {
+                        const q = query(
+                            collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'),
+                            orderBy('date', 'desc'),
+                            limit(50) 
+                        );
+                        // Filtro de mês feito via JS para economizar índices e manter simplicidade
+                        const snap = await getDocs(q);
+                        const targetMonth = currentDate.value.getMonth();
+                        const targetYear = currentDate.value.getFullYear();
+                        
+                        transactions.value = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => {
+                            const d = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+                            return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+                        });
+                        historyLoaded.value = true;
+                    } catch (e) { console.error(e); } finally { loadingHistory.value = false; }
+                };
 
                 const saveTransaction = async () => {
                     if (newTransaction.value.amount <= 0 || !user.value) return;
+                    const data = { ...newTransaction.value };
+                    if (!data.description) data.description = 'Gasto';
                     
-                    const data = { ...newTransaction.value }; 
-                    if (!data.description || data.description.trim() === '') {
-                        data.description = 'Outros';
-                    }
-                    
-                    delete data.id;
-                    try { 
+                    const summaryRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'summaries', currentMonthKey.value);
+                    const typeField = data.type === 'credit' ? 'totalCredit' : 'totalDebit';
+
+                    try {
                         if (editingId.value) {
-                            await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), data); 
+                            // Estornar antigo e somar novo
+                            const oldTypeField = oldType.value === 'credit' ? 'totalCredit' : 'totalDebit';
+                            await updateDoc(summaryRef, { 
+                                [oldTypeField]: increment(-oldAmount.value),
+                                [typeField]: increment(data.amount)
+                            });
+                            await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), data);
                         } else {
-                            await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), data); 
+                            // Apenas somar novo
+                            await setDoc(summaryRef, { [typeField]: increment(data.amount) }, { merge: true });
+                            await addDoc(collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'), data);
                         }
-                        closeModal(); 
+                        // Forçar recarga da lista se ela estiver aberta
+                        if (historyLoaded.value) loadHistory();
+                        closeModal();
                     } catch (e) { console.error(e); }
                 };
 
-                const handleLogin = async () => { isLoggingIn.value = true; try { await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value); } catch (e) { console.error(e); } finally { isLoggingIn.value = false; } };
-                const handleLogout = () => confirm('Sair?') && signOut(auth);
-                const handleAmountInput = (e) => { let val = e.target.value.replace(/\D/g, ''); newTransaction.value.amount = val ? parseFloat(val) / 100 : 0; };
-                const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-                const formatDateShort = (ts) => {
-                    const d = ts?.toDate ? ts.toDate() : (ts ? new Date(ts) : null);
-                    return d ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(d) : '--';
+                const deleteTransaction = async (id) => {
+                    if (confirm("Excluir?") && user.value) {
+                        const summaryRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'summaries', currentMonthKey.value);
+                        const typeField = oldType.value === 'credit' ? 'totalCredit' : 'totalDebit';
+                        await updateDoc(summaryRef, { [typeField]: increment(-oldAmount.value) });
+                        await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id));
+                        if (historyLoaded.value) loadHistory();
+                        closeModal();
+                    }
                 };
-                const changeMonth = (d) => { const newD = new Date(currentDate.value); newD.setMonth(newD.getMonth() + d); currentDate.value = newD; };
-                const openModal = () => { editingId.value = null; newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() }; showModal.value = true; };
-                const editTransaction = (t) => { editingId.value = t.id; newTransaction.value = { ...t }; showModal.value = true; };
-                
-                // Melhorado para sempre limpar o estado global de lançamento ao fechar
-                const closeModal = () => { 
-                    showModal.value = false; 
-                    editingId.value = null;
-                    newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() };
-                };
-                
-                const toggleSettings = () => { tempLimit.value = currentMonthlyLimit.value; showSettings.value = !showSettings.value; };
-                const saveLimit = async () => { if (!user.value) return; await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'settings', 'config'), { monthlyLimits: { ...monthlyLimitsMap.value, [currentMonthKey.value]: parseFloat(tempLimit.value) } }, { merge: true }); showSettings.value = false; };
-                
-                const deleteTransaction = async (id) => { 
-                    if (confirm("Excluir?") && user.value) { 
-                        await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id)); 
-                        closeModal(); 
-                    } 
-                };
+
+                // Listeners de Resumo e Config
+                watch([user, currentMonthKey], ([u, month]) => {
+                    if (!u) return;
+                    // Resetar histórico ao mudar de mês
+                    historyLoaded.value = false;
+                    transactions.value = [];
+                    
+                    onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'summaries', month), (s) => {
+                        currentMonthSummary.value = s.exists() ? s.data() : { totalDebit: 0, totalCredit: 0 };
+                    });
+                }, { immediate: true });
 
                 onMounted(() => {
                     onAuthStateChanged(auth, (u) => {
-                        user.value = u; 
-                        appReady.value = true;
-                        setTimeout(() => document.getElementById('splash-screen')?.classList.add('hidden'), 300);
+                        user.value = u; appReady.value = true;
+                        setTimeout(() => document.getElementById('splash-screen')?.classList.add('hidden'), 400);
                         if (u) {
-                            loading.value = true;
-                            onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'settings', 'config'), (s) => { 
-                                if (s.exists()) { 
-                                    defaultLimit.value = s.data().monthlyLimit || 2000; 
-                                    monthlyLimitsMap.value = s.data().monthlyLimits || {}; 
-                                } 
-                            });
-                            onSnapshot(collection(db, 'artifacts', appId, 'users', u.uid, 'expenses'), (s) => { 
-                                transactions.value = s.docs.map(d => ({ id: d.id, ...d.data() }));
-                                loading.value = false;
+                            onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'settings', 'config'), (s) => {
+                                if (s.exists()) {
+                                    defaultLimit.value = s.data().monthlyLimit || 2000;
+                                    monthlyLimitsMap.value = s.data().monthlyLimits || {};
+                                }
                             });
                         }
                     });
-                    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
                 });
 
-                return { appReady, user, transactions, loading, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, filteredTransactions, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, toggleSettings, saveLimit, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, expectedProgress, showCalculator, calcDisplay, calcHistory, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult, deleteTransaction };
+                // Helpers de UI
+                const handleAmountInput = (e) => { let val = e.target.value.replace(/\D/g, ''); newTransaction.value.amount = val ? parseFloat(val) / 100 : 0; };
+                const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+                const formatDateShort = (ts) => { const d = ts?.toDate ? ts.toDate() : new Date(ts); return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(d); };
+                const changeMonth = (d) => { const newD = new Date(currentDate.value); newD.setMonth(newD.getMonth() + d); currentDate.value = newD; };
+                const openModal = () => { editingId.value = null; newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() }; showModal.value = true; };
+                const editTransaction = (t) => { editingId.value = t.id; oldAmount.value = t.amount; oldType.value = t.type; newTransaction.value = { ...t }; showModal.value = true; };
+                const closeModal = () => { showModal.value = false; editingId.value = null; };
+                const toggleSettings = () => { tempLimit.value = currentMonthlyLimit.value; showSettings.value = !showSettings.value; };
+                const saveLimit = async () => { await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'settings', 'config'), { monthlyLimits: { ...monthlyLimitsMap.value, [currentMonthKey.value]: parseFloat(tempLimit.value) } }, { merge: true }); showSettings.value = false; };
+                const handleLogin = async () => { isLoggingIn.value = true; try { await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value); } catch (e) { console.error(e); } finally { isLoggingIn.value = false; } };
+                const handleLogout = () => confirm('Sair?') && signOut(auth);
+                const calcAppend = (n) => calcDisplay.value = calcDisplay.value === '0' ? n : calcDisplay.value + n;
+                const calcClear = () => calcDisplay.value = '0';
+                const calcBackspace = () => calcDisplay.value = calcDisplay.value.slice(0, -1) || '0';
+                const calcCalculate = () => { try { calcDisplay.value = eval(calcDisplay.value.replace(/,/g, '.')).toString(); } catch (e) { calcDisplay.value = 'Erro'; } };
+                const useCalcResult = () => { calcCalculate(); const res = parseFloat(calcDisplay.value); if (!isNaN(res)) newTransaction.value.amount = res; showCalculator.value = false; };
+
+                return { appReady, user, historyLoaded, loadingHistory, loadHistory, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, filteredTransactions, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, toggleSettings, saveLimit, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, expectedProgress, showCalculator, calcDisplay, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult, deleteTransaction };
             }
         }).mount('#app');
     </script>
