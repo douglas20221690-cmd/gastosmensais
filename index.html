@@ -84,6 +84,10 @@
                         Financeiro
                     </h1>
                     <div class="flex gap-4">
+                        <!-- BOTÃO DE SINCRONIZAÇÃO MANUAL (CASO O VALOR ESTEJA ERRADO) -->
+                        <button @click="forceSync" :class="{'animate-spin opacity-50': isSyncing}" title="Recalcular Saldo">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                         <button @click="toggleSettings" class="opacity-80"><i class="fas fa-cog"></i></button>
                         <button @click="handleLogout" class="opacity-80"><i class="fas fa-sign-out-alt"></i></button>
                     </div>
@@ -119,7 +123,7 @@
                 <!-- INFO DE SALDO -->
                 <div class="animate-fade-in space-y-1">
                     <div v-if="isSyncing" class="text-center py-2 bg-white/10 rounded-lg animate-pulse">
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-200">Sincronizando saldo antigo...</p>
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-200">Sincronizando dados...</p>
                     </div>
                     <div v-else class="flex justify-between items-end">
                         <div>
@@ -177,7 +181,7 @@
                             </div>
                             <div class="leading-tight">
                                 <p class="font-bold text-gray-800 text-sm truncate max-w-[140px]">{{ t.description || 'Gasto' }}</p>
-                                <p class="text-[11px] text-gray-400 font-medium">{{ formatDateShort(t.date) }}</p>
+                                <p class="text-[11px] text-gray-400 font-medium">{{ formatDateShort(t.date || t.createdAt) }}</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
@@ -200,7 +204,7 @@
                 <i class="fas fa-plus"></i>
             </button>
 
-            <!-- MODAL LANÇAMENTO -->
+            <!-- MODAIS -->
             <div v-if="showModal" class="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center backdrop-blur-sm" @click.self="closeModal">
                 <div class="bg-white w-full max-w-lg p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
                     <h2 class="text-xl font-bold text-gray-800 mb-6">{{ editingId ? 'Editar Gasto' : 'Novo Gasto' }}</h2>
@@ -222,9 +226,9 @@
                 </div>
             </div>
 
-            <!-- MODAL CALCULADORA -->
+            <!-- CALCULADORA -->
             <div v-if="showCalculator" class="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center backdrop-blur-md" @click.self="showCalculator = false">
-                <div class="bg-white w-full max-w-sm p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
+                <div class="bg-white w-full max-sm p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
                     <div class="bg-gray-100 p-6 rounded-2xl mb-6 text-right">
                         <div class="text-3xl font-black text-emerald-600 truncate">{{ calcDisplay }}</div>
                     </div>
@@ -242,7 +246,6 @@
                 </div>
             </div>
 
-            <!-- CONFIGS -->
             <div v-if="showSettings" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-6 backdrop-blur-md" @click.self="showSettings = false">
                 <div class="bg-white w-full max-w-xs p-8 rounded-3xl shadow-2xl">
                     <h3 class="font-bold text-lg mb-2">Limite Mensal</h3>
@@ -297,33 +300,38 @@
 
                 const formattedAmountDisplay = computed(() => newTransaction.value.amount === 0 ? '' : newTransaction.value.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
                 const currentMonthDisplay = computed(() => new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentDate.value));
-                const currentMonthKey = computed(() => { const m = currentDate.value.getMonth() + 1; const y = currentDate.value.getFullYear(); return `${y}-${m.toString().padStart(2, '0')}`; });
-                const currentMonthlyLimit = computed(() => monthlyLimitsMap.value[currentMonthKey.value] ?? defaultLimit.value);
+                const currentMonthKey = computed(() => { 
+                    const m = currentDate.value.getMonth() + 1; 
+                    const y = currentDate.value.getFullYear(); 
+                    return `${y}-${m.toString().padStart(2, '0')}`; 
+                });
                 
+                const currentMonthlyLimit = computed(() => monthlyLimitsMap.value[currentMonthKey.value] ?? defaultLimit.value);
                 const totalSpent = computed(() => currentMonthSummary.value.totalDebit + currentMonthSummary.value.totalCredit);
                 const totalDebit = computed(() => currentMonthSummary.value.totalDebit);
                 const totalCredit = computed(() => currentMonthSummary.value.totalCredit);
-                
                 const remainingBudget = computed(() => currentMonthlyLimit.value - totalSpent.value);
                 const progressPercentage = computed(() => Math.min((totalSpent.value / (currentMonthlyLimit.value || 1)) * 100, 100));
+                
                 const expectedProgress = computed(() => { 
                     const now = new Date(); 
                     if (now.getMonth() !== currentDate.value.getMonth() || now.getFullYear() !== currentDate.value.getFullYear()) return 100;
                     const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); 
                     return (now.getDate() / totalDays) * 100; 
                 });
+                
                 const progressBarColor = computed(() => progressPercentage.value > 95 ? 'bg-red-600' : progressPercentage.value > expectedProgress.value ? 'bg-orange-500' : 'bg-emerald-300');
-
                 const filteredTransactions = computed(() => transactions.value);
 
-                // FUNÇÃO DE MIGRAÇÃO: Se o resumo não existe, calcula dos gastos salvos
+                // FUNÇÃO DE MIGRAÇÃO REFORÇADA
                 const syncSummaryFromExpenses = async (u, monthKey) => {
+                    if (isSyncing.value) return;
                     isSyncing.value = true;
                     try {
                         const targetMonth = currentDate.value.getMonth();
                         const targetYear = currentDate.value.getFullYear();
                         
-                        // Fazemos uma busca única de todos os gastos (isso acontece apenas uma vez por mês)
+                        // Lemos os gastos da conta
                         const q = query(collection(db, 'artifacts', appId, 'users', u.uid, 'expenses'));
                         const snap = await getDocs(q);
                         
@@ -332,22 +340,34 @@
                         
                         snap.docs.forEach(d => {
                             const data = d.data();
-                            const dDate = data.date?.toDate ? data.date.toDate() : new Date(data.date);
-                            if (dDate.getMonth() === targetMonth && dDate.getFullYear() === targetYear) {
-                                if (data.type === 'credit') cre += (data.amount || 0);
-                                else deb += (data.amount || 0);
+                            // Verifica data ou createdAt (suporta múltiplos formatos)
+                            const rawDate = data.date || data.createdAt;
+                            if (!rawDate) return;
+
+                            const dDate = rawDate.toDate ? rawDate.toDate() : new Date(rawDate);
+                            
+                            if (!isNaN(dDate.getTime()) && dDate.getMonth() === targetMonth && dDate.getFullYear() === targetYear) {
+                                const val = parseFloat(data.amount) || 0;
+                                if (data.type === 'credit') cre += val;
+                                else deb += val;
                             }
                         });
 
-                        // Salva o resumo para que as próximas vezes custem apenas 1 leitura
+                        // Atualiza o documento de resumo no Firebase
                         const summaryRef = doc(db, 'artifacts', appId, 'users', u.uid, 'summaries', monthKey);
-                        await setDoc(summaryRef, { totalDebit: deb, totalCredit: cre }, { merge: true });
+                        const finalData = { totalDebit: deb, totalCredit: cre, lastSync: new Date().toISOString() };
+                        await setDoc(summaryRef, finalData, { merge: true });
+                        
+                        // Atualiza localmente para resposta imediata
+                        currentMonthSummary.value = finalData;
                     } catch (e) {
-                        console.error("Erro ao sincronizar resumo:", e);
+                        console.error("Erro na sincronização:", e);
                     } finally {
                         isSyncing.value = false;
                     }
                 };
+
+                const forceSync = () => user.value && syncSummaryFromExpenses(user.value, currentMonthKey.value);
 
                 const loadHistory = async () => {
                     if (!user.value) return;
@@ -356,14 +376,15 @@
                         const q = query(
                             collection(db, 'artifacts', appId, 'users', user.value.uid, 'expenses'),
                             orderBy('date', 'desc'),
-                            limit(60) 
+                            limit(80) 
                         );
                         const snap = await getDocs(q);
                         const targetMonth = currentDate.value.getMonth();
                         const targetYear = currentDate.value.getFullYear();
                         
                         transactions.value = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => {
-                            const d = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+                            const rawDate = t.date || t.createdAt;
+                            const d = rawDate?.toDate ? rawDate.toDate() : new Date(rawDate);
                             return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
                         });
                         historyLoaded.value = true;
@@ -372,7 +393,7 @@
 
                 const saveTransaction = async () => {
                     if (newTransaction.value.amount <= 0 || !user.value) return;
-                    const data = { ...newTransaction.value };
+                    const data = { ...newTransaction.value, updatedAt: new Date() };
                     if (!data.description) data.description = 'Gasto';
                     
                     const summaryRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'summaries', currentMonthKey.value);
@@ -406,7 +427,6 @@
                     }
                 };
 
-                // Listener Inteligente do Resumo
                 watch([user, currentMonthKey], ([u, month]) => {
                     if (!u) return;
                     historyLoaded.value = false;
@@ -416,7 +436,6 @@
                         if (s.exists()) {
                             currentMonthSummary.value = s.data();
                         } else {
-                            // Se o resumo não existe, tenta calcular do que já tem no banco
                             syncSummaryFromExpenses(u, month);
                         }
                     });
@@ -439,7 +458,7 @@
 
                 const handleAmountInput = (e) => { let val = e.target.value.replace(/\D/g, ''); newTransaction.value.amount = val ? parseFloat(val) / 100 : 0; };
                 const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-                const formatDateShort = (ts) => { const d = ts?.toDate ? ts.toDate() : new Date(ts); return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(d); };
+                const formatDateShort = (ts) => { const d = ts?.toDate ? ts.toDate() : new Date(ts); return isNaN(d.getTime()) ? '--' : new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(d); };
                 const changeMonth = (d) => { const newD = new Date(currentDate.value); newD.setMonth(newD.getMonth() + d); currentDate.value = newD; };
                 const openModal = () => { editingId.value = null; newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() }; showModal.value = true; };
                 const editTransaction = (t) => { editingId.value = t.id; oldAmount.value = t.amount; oldType.value = t.type; newTransaction.value = { ...t }; showModal.value = true; };
@@ -454,7 +473,7 @@
                 const calcCalculate = () => { try { calcDisplay.value = eval(calcDisplay.value.replace(/,/g, '.')).toString(); } catch (e) { calcDisplay.value = 'Erro'; } };
                 const useCalcResult = () => { calcCalculate(); const res = parseFloat(calcDisplay.value); if (!isNaN(res)) newTransaction.value.amount = res; showCalculator.value = false; };
 
-                return { appReady, user, historyLoaded, loadingHistory, loadHistory, isSyncing, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, filteredTransactions, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, toggleSettings, saveLimit, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, expectedProgress, showCalculator, calcDisplay, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult, deleteTransaction };
+                return { appReady, user, historyLoaded, loadingHistory, loadHistory, isSyncing, forceSync, loginEmail, loginPassword, isLoggingIn, handleLogin, handleLogout, showModal, showSettings, newTransaction, tempLimit, filteredTransactions, currentMonthDisplay, changeMonth, currentMonthlyLimit, formatCurrency, formatDateShort, openModal, closeModal, toggleSettings, saveLimit, saveTransaction, editTransaction, editingId, formattedAmountDisplay, handleAmountInput, remainingBudget, progressPercentage, progressBarColor, totalSpent, totalDebit, totalCredit, expectedProgress, showCalculator, calcDisplay, calcAppend, calcClear, calcBackspace, calcCalculate, useCalcResult, deleteTransaction };
             }
         }).mount('#app');
     </script>
