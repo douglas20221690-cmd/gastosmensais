@@ -124,10 +124,12 @@
             <div class="px-4 pt-4 shrink-0">
                 <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm space-y-2">
                     <div class="flex gap-2 items-center">
+                        <!-- min-w-0 para evitar que o input empurre os botões para fora -->
                         <input type="tel" inputmode="numeric" :value="formattedAmountDisplay" @input="handleAmountInput" 
-                               class="flex-1 px-4 py-3 bg-gray-50 rounded-xl font-bold text-gray-800 outline-none placeholder:text-gray-300" 
+                               class="flex-1 min-w-0 px-4 py-3 bg-gray-50 rounded-xl font-bold text-gray-800 outline-none placeholder:text-gray-300" 
                                placeholder="0,00">
-                        <div class="flex bg-gray-50 rounded-xl p-1 gap-1 h-[52px] items-center">
+                        <!-- Ajuste de layout para os botões não ficarem na borda -->
+                        <div class="flex bg-gray-50 rounded-xl p-1 gap-1 h-[52px] items-center shrink-0 mr-1">
                             <button @click="newTransaction.type = 'debit'" class="px-3 h-full rounded-lg text-[10px] font-black uppercase" :class="newTransaction.type === 'debit' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-300'">Déb</button>
                             <button @click="newTransaction.type = 'credit'" class="px-3 h-full rounded-lg text-[10px] font-black uppercase" :class="newTransaction.type === 'credit' ? 'bg-indigo-500 text-white shadow-md' : 'text-gray-300'">Cré</button>
                         </div>
@@ -205,7 +207,7 @@
                 </div>
             </div>
 
-            <!-- CONFIGURAÇÕES (BOTÃO DE SINCRONIZAR MANUAL AGORA AQUI DENTRO) -->
+            <!-- CONFIGURAÇÕES -->
             <div v-if="showSettings" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-6 backdrop-blur-md" @click.self="showSettings = false">
                 <div class="bg-white w-full max-w-xs p-8 rounded-3xl shadow-2xl space-y-6">
                     <div>
@@ -231,7 +233,7 @@
         const { createApp, ref, computed, onMounted, watch } = Vue;
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, increment, getDocs, query, onSnapshot, arrayUnion, arrayRemove, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+        import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, increment, getDoc, getDocs, query, onSnapshot, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = { apiKey: "AIzaSyBynG1L1voQ-GJnjwv7KeKV6p64eDxD8KY", authDomain: "gastosmensais-3d721.firebaseapp.com", projectId: "gastosmensais-3d721", storageBucket: "gastosmensais-3d721.firebasestorage.app", messagingSenderId: "564092336226", appId: "1:564092336226:web:8d68fb169fc09dce84793b" };
         const fbApp = initializeApp(firebaseConfig);
@@ -258,7 +260,6 @@
                 const showSettings = ref(false);
                 const tempLimit = ref(2000);
                 const editingId = ref(null);
-                const editingItemRaw = ref(null);
 
                 const newTransaction = ref({ amount: 0, description: '', type: 'debit', date: new Date() });
                 const showCalculator = ref(false);
@@ -278,24 +279,18 @@
                 const transactions = computed(() => currentMonthSummary.value.items || []);
                 const sortedTransactions = computed(() => [...transactions.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
 
-                // Sincronização automática para meses sem resumo
                 const syncMonth = async (u, monthKey) => {
                     if (isSyncing.value) return;
                     isSyncing.value = true;
                     try {
                         const targetMonth = currentDate.value.getMonth();
                         const targetYear = currentDate.value.getFullYear();
-                        
-                        // Busca TODOS os gastos para garantir o recalculo correto
                         const q = query(collection(db, 'artifacts', appId, 'users', u.uid, 'expenses'));
                         const snap = await getDocs(q);
-                        
                         let deb = 0, cre = 0, items = [];
                         snap.docs.forEach(d => {
                             const data = d.data();
                             const dDate = data.date?.toDate ? data.date.toDate() : new Date(data.date);
-                            
-                            // Filtra apenas o mês atual selecionado
                             if (dDate.getMonth() === targetMonth && dDate.getFullYear() === targetYear) {
                                 const item = { id: d.id, ...data, date: dDate.toISOString() };
                                 items.push(item);
@@ -303,15 +298,8 @@
                                 else deb += (data.amount || 0);
                             }
                         });
-                        
-                        // Salva o resumo (1 leitura futura)
-                        await setDoc(doc(db, 'artifacts', appId, 'users', u.uid, 'summaries', monthKey), { 
-                            totalDebit: deb, 
-                            totalCredit: cre, 
-                            items: items,
-                            lastUpdated: new Date().toISOString()
-                        }, { merge: true });
-                    } catch (e) { console.error("Erro na sincronização:", e); } finally { isSyncing.value = false; }
+                        await setDoc(doc(db, 'artifacts', appId, 'users', u.uid, 'summaries', monthKey), { totalDebit: deb, totalCredit: cre, items: items }, { merge: true });
+                    } catch (e) { console.error(e); } finally { isSyncing.value = false; }
                 };
 
                 const saveTransaction = async () => {
@@ -322,54 +310,83 @@
                     const data = { id: transactionId, amount: newTransaction.value.amount, description: newTransaction.value.description || 'Gasto', type: newTransaction.value.type, date: dateObj.toISOString() };
                     
                     const summaryRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'summaries', currentMonthKey.value);
-                    const typeField = data.type === 'credit' ? 'totalCredit' : 'totalDebit';
 
                     try {
-                        if (editingId.value) {
-                            const oldTypeField = editingItemRaw.value.type === 'credit' ? 'totalCredit' : 'totalDebit';
-                            await updateDoc(summaryRef, { 
-                                [oldTypeField]: increment(-editingItemRaw.value.amount), 
-                                items: arrayRemove(editingItemRaw.value) 
-                            });
-                            await updateDoc(summaryRef, { 
-                                [typeField]: increment(data.amount), 
-                                items: arrayUnion(data) 
-                            });
-                            await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', editingId.value), data);
-                        } else {
+                        const summarySnap = await getDoc(summaryRef);
+                        if (summarySnap.exists()) {
+                            const sData = summarySnap.data();
+                            let items = sData.items || [];
+                            let totalDeb = sData.totalDebit || 0;
+                            let totalCre = sData.totalCredit || 0;
+
+                            if (editingId.value) {
+                                // Se for edição, remove o valor antigo dos totais
+                                const oldItem = items.find(i => i.id === editingId.value);
+                                if (oldItem) {
+                                    if (oldItem.type === 'credit') totalCre -= oldItem.amount;
+                                    else totalDeb -= oldItem.amount;
+                                    // Remove o item antigo do array
+                                    items = items.filter(i => i.id !== editingId.value);
+                                }
+                            }
+
+                            // Adiciona o novo valor e o novo item
+                            if (data.type === 'credit') totalCre += data.amount;
+                            else totalDeb += data.amount;
+                            items.push(data);
+
                             await setDoc(summaryRef, { 
-                                [typeField]: increment(data.amount), 
-                                items: arrayUnion(data) 
+                                totalDebit: totalDeb, 
+                                totalCredit: totalCre, 
+                                items: items 
                             }, { merge: true });
-                            await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', transactionId), data);
                         }
+
+                        // Salva na coleção de backup
+                        await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', transactionId), data);
                         closeModal();
                     } catch (e) { console.error(e); }
                 };
 
                 const deleteTransaction = async (id) => {
-                    if (confirm("Excluir?") && user.value) {
-                        const summaryRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'summaries', currentMonthKey.value);
-                        const typeField = editingItemRaw.value.type === 'credit' ? 'totalCredit' : 'totalDebit';
-                        await updateDoc(summaryRef, { 
-                            [typeField]: increment(-editingItemRaw.value.amount), 
-                            items: arrayRemove(editingItemRaw.value) 
-                        });
-                        await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id));
-                        closeModal();
+                    if (confirm("Excluir definitivamente?") && user.value) {
+                        try {
+                            const summaryRef = doc(db, 'artifacts', appId, 'users', user.value.uid, 'summaries', currentMonthKey.value);
+                            const summarySnap = await getDoc(summaryRef);
+                            
+                            if (summarySnap.exists()) {
+                                const sData = summarySnap.data();
+                                let items = sData.items || [];
+                                const itemToDelete = items.find(i => i.id === id);
+
+                                if (itemToDelete) {
+                                    let totalDeb = sData.totalDebit || 0;
+                                    let totalCre = sData.totalCredit || 0;
+
+                                    if (itemToDelete.type === 'credit') totalCre -= itemToDelete.amount;
+                                    else totalDeb -= itemToDelete.amount;
+
+                                    items = items.filter(i => i.id !== id);
+
+                                    await setDoc(summaryRef, { 
+                                        totalDebit: totalDeb, 
+                                        totalCredit: totalCre, 
+                                        items: items 
+                                    }, { merge: true });
+                                }
+                            }
+
+                            await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', id));
+                            closeModal();
+                        } catch (e) { console.error(e); }
                     }
                 };
 
-                // Listener que garante que o resumo sempre atualize em tempo real
                 watch([user, currentMonthKey], ([u, month]) => {
                     if (!u) return;
                     onSnapshot(doc(db, 'artifacts', appId, 'users', u.uid, 'summaries', month), (s) => {
-                        if (s.exists()) {
-                            currentMonthSummary.value = s.data();
-                        } else {
-                            // Se o resumo não existe no Firebase, gera ele automaticamente
-                            syncMonth(u, month);
-                        }
+                        if (s.exists()) currentMonthSummary.value = s.data();
+                        else syncMonth(u, month);
                     });
                 }, { immediate: true });
 
@@ -390,7 +407,7 @@
                 const formatDateShort = (dStr) => { const d = new Date(dStr); return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(d); };
                 const changeMonth = (d) => { const newD = new Date(currentDate.value); newD.setMonth(newD.getMonth() + d); currentDate.value = newD; };
                 const openModal = () => { editingId.value = null; newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() }; showModal.value = true; };
-                const editTransaction = (t) => { editingId.value = t.id; editingItemRaw.value = JSON.parse(JSON.stringify(t)); newTransaction.value = { ...t }; showModal.value = true; };
+                const editTransaction = (t) => { editingId.value = t.id; newTransaction.value = { ...t }; showModal.value = true; };
                 const closeModal = () => { showModal.value = false; editingId.value = null; };
                 const handleLogout = () => confirm('Sair?') && signOut(auth);
                 const handleLogin = async () => { isLoggingIn.value = true; try { await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value); } catch (e) { console.error(e); } finally { isLoggingIn.value = false; } };
