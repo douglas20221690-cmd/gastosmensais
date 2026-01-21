@@ -168,7 +168,7 @@
 
             <!-- MODAL EDIÇÃO -->
             <div v-if="showModal" class="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center backdrop-blur-sm" @click.self="closeModal">
-                <div class="bg-white w-full max-w-lg p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
+                <div class="bg-white w-full max-lg p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
                     <h2 class="text-xl font-bold text-gray-800 mb-6">{{ editingId ? 'Editar Gasto' : 'Novo Gasto' }}</h2>
                     <div class="space-y-4">
                         <div class="flex gap-3">
@@ -336,6 +336,10 @@
 
                         await setDoc(summaryRef, { totalDebit: totalDeb, totalCredit: totalCre, items: items }, { merge: true });
                         await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', transactionId), data);
+                        
+                        // Limpa os campos após o salvamento bem-sucedido
+                        newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() };
+                        
                         closeModal();
                     } catch (e) { console.error(e); }
                 };
