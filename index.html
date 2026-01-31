@@ -57,7 +57,6 @@
 
     <div id="app" class="flex flex-col h-full relative" v-cloak>
 
-        <!-- LOGIN -->
         <div v-if="appReady && !user" class="absolute inset-0 z-50 bg-emerald-600 flex flex-col items-center justify-center p-6 animate-fade-in">
             <div class="bg-white w-full max-sm p-8 rounded-3xl shadow-2xl">
                 <div class="text-center mb-8">
@@ -72,7 +71,6 @@
             </div>
         </div>
         
-        <!-- APP -->
         <template v-else-if="user && appReady">
             <header class="bg-emerald-600 text-white p-5 shadow-lg rounded-b-3xl z-10 shrink-0">
                 <div class="flex justify-between items-center mb-4">
@@ -92,7 +90,6 @@
                     <button @click="changeMonth(1)" class="w-9 h-9 flex items-center justify-center"><i class="fas fa-chevron-right text-xs"></i></button>
                 </div>
 
-                <!-- DASHBOARD -->
                 <div class="animate-fade-in space-y-1">
                     <div v-if="isSyncing" class="text-center py-2 bg-white/10 rounded-lg animate-pulse">
                         <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-200">Sincronizando Mês...</p>
@@ -102,9 +99,16 @@
                             <p class="text-emerald-100 text-[10px] uppercase font-bold tracking-wider mb-1">Saldo Livre</p>
                             <div class="text-3xl font-bold leading-none">{{ formatCurrency(remainingBudget) }}</div>
                         </div>
-                        <div class="text-right">
-                            <p class="text-emerald-100 text-[10px] uppercase font-bold tracking-wider mb-1">Uso do Limite</p>
-                            <div class="text-lg font-bold leading-none">{{ progressPercentage.toFixed(0) }}%</div>
+                        <div class="text-right flex flex-col items-end gap-1">
+                            <div class="flex gap-2">
+                                <div class="text-[9px] font-bold bg-orange-700/30 px-2 py-1 rounded-lg border border-white/10 text-emerald-50">
+                                    <span class="opacity-70 mr-0.5">D:</span> {{ formatCurrency(totalDebit) }}
+                                </div>
+                                <div class="text-[9px] font-bold bg-indigo-700/30 px-2 py-1 rounded-lg border border-white/10 text-emerald-50">
+                                    <span class="opacity-70 mr-0.5">C:</span> {{ formatCurrency(totalCredit) }}
+                                </div>
+                            </div>
+                            <div class="text-lg font-bold leading-none mt-0.5">{{ progressPercentage.toFixed(0) }}%</div>
                         </div>
                     </div>
                     
@@ -119,7 +123,6 @@
                 </div>
             </header>
 
-            <!-- LANÇAMENTO RÁPIDO (TELA INICIAL) -->
             <div class="px-4 pt-4 shrink-0">
                 <div class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm space-y-2">
                     <div class="flex gap-2 items-center">
@@ -138,7 +141,6 @@
                 </div>
             </div>
 
-            <!-- LISTA DE GASTOS -->
             <main class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar pb-24">
                 <div v-if="transactions.length === 0 && !isSyncing" class="text-center py-10 bg-white rounded-3xl border border-dashed text-gray-400 text-sm">
                     Nenhum gasto registrado.
@@ -161,7 +163,6 @@
                 </div>
             </main>
 
-            <!-- MODAL EDIÇÃO/EXCLUSÃO (SÓ ABRE PARA EDITAR) -->
             <div v-if="showModal" class="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center backdrop-blur-sm" @click.self="closeModal">
                 <div class="bg-white w-full max-lg p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
                     <h2 class="text-xl font-bold text-gray-800 mb-6">Editar Gasto</h2>
@@ -183,7 +184,6 @@
                 </div>
             </div>
 
-            <!-- CALCULADORA -->
             <div v-if="showCalculator" class="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center backdrop-blur-md" @click.self="showCalculator = false">
                 <div class="bg-white w-full max-sm p-6 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl animate-slide-up pb-safe">
                     <div class="bg-gray-100 p-6 rounded-2xl mb-6 text-right font-black text-3xl text-emerald-600 truncate">{{ calcDisplay }}</div>
@@ -199,7 +199,6 @@
                 </div>
             </div>
 
-            <!-- CONFIGURAÇÕES -->
             <div v-if="showSettings" class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-6 backdrop-blur-md" @click.self="showSettings = false">
                 <div class="bg-white w-full max-w-xs p-8 rounded-3xl shadow-2xl space-y-6">
                     <div>
@@ -260,9 +259,11 @@
                 const currentMonthDisplay = computed(() => new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentDate.value));
                 const currentMonthlyLimit = computed(() => monthlyLimitsMap.value[currentMonthKey.value] ?? defaultLimit.value);
                 
-                const totalSpent = computed(() => currentMonthSummary.value.totalDebit + currentMonthSummary.value.totalCredit);
-                const totalDebit = computed(() => currentMonthSummary.value.totalDebit);
-                const totalCredit = computed(() => currentMonthSummary.value.totalCredit);
+                // Totais calculados diretamente do resumo do banco de dados
+                const totalDebit = computed(() => currentMonthSummary.value.totalDebit || 0);
+                const totalCredit = computed(() => currentMonthSummary.value.totalCredit || 0);
+                const totalSpent = computed(() => totalDebit.value + totalCredit.value);
+                
                 const remainingBudget = computed(() => currentMonthlyLimit.value - totalSpent.value);
                 const progressPercentage = computed(() => Math.min((totalSpent.value / (currentMonthlyLimit.value || 1)) * 100, 100));
                 const progressBarColor = computed(() => progressPercentage.value > 95 ? 'bg-red-600' : 'bg-emerald-300');
@@ -289,6 +290,7 @@
                                 else deb += (data.amount || 0);
                             }
                         });
+                        // Atualiza os totais de débito e crédito no resumo
                         await setDoc(doc(db, 'artifacts', appId, 'users', u.uid, 'summaries', monthKey), { totalDebit: deb, totalCredit: cre, items: items }, { merge: true });
                     } catch (e) { console.error(e); } finally { isSyncing.value = false; }
                 };
@@ -332,9 +334,7 @@
                         await setDoc(summaryRef, { totalDebit: totalDeb, totalCredit: totalCre, items: items }, { merge: true });
                         await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, 'expenses', transactionId), data);
                         
-                        // Garante a limpeza total dos campos para o próximo lançamento
                         newTransaction.value = { amount: 0, description: '', type: 'debit', date: new Date() };
-                        
                         closeModal();
                     } catch (e) { console.error(e); }
                 };
